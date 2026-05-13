@@ -195,7 +195,7 @@ export default function ReportesIndex({ filters = {}, options = {}, summary = {}
                         <Select label="Tipo local" value={form.tipo_local} onChange={(value) => update('tipo_local', value)} options={options.tiposLocal} placeholder="Todos los tipos" />
                         <Select label="Estado local" value={form.estado_local} onChange={(value) => update('estado_local', value)} options={options.estadosLocal} placeholder="Todos los estados" />
                         <Select label="Estado pantalla" value={form.estado_pantalla} onChange={(value) => update('estado_pantalla', value)} options={options.estadosPantalla} placeholder="Todos los estados" />
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <DateInput label="Desde" value={form.fecha_desde} onChange={(value) => update('fecha_desde', value)} />
                             <DateInput label="Hasta" value={form.fecha_hasta} onChange={(value) => update('fecha_hasta', value)} />
                         </div>

@@ -53,7 +53,7 @@ function PantallaForm({ form, locales, tipos, isEdit, onSubmit }) {
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FieldGroup label="N° de Serie" error={errors.serie}>
                     <input
                         type="text"
@@ -74,7 +74,7 @@ function PantallaForm({ form, locales, tipos, isEdit, onSubmit }) {
                 </FieldGroup>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FieldGroup label="Marca" error={errors.marca}>
                     <input
                         type="text"
@@ -97,7 +97,7 @@ function PantallaForm({ form, locales, tipos, isEdit, onSubmit }) {
                 </FieldGroup>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FieldGroup label="Tipo de pantalla" error={errors.modelo}>
                     <select
                         value={data.modelo}

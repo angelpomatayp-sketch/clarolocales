@@ -319,7 +319,7 @@ function DetailPanel({ local, onClose, onVerMapa, pantallaBuscada }) {
     const tieneHistorialLocal   = (local.movimientos?.length ?? 0) > 0;
 
     return (
-        <aside className="w-80 flex-shrink-0 bg-white border-l border-gray-200 flex flex-col h-full overflow-hidden">
+        <aside className="fixed inset-0 z-50 bg-white flex flex-col overflow-hidden md:relative md:inset-auto md:z-auto md:w-80 md:flex-shrink-0 md:border-l md:border-gray-200">
             {/* Encabezado */}
             <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-gray-100">
                 <div className="flex-1 min-w-0">
@@ -730,6 +730,7 @@ function MapaView({ locales, zonas, activeZona, activeDept, activeProv, activeDi
     const googleRef   = useRef(null);
     const [hoverId,   setHoverId]  = useState(null);
     const [mapReady,  setMapReady] = useState(false);
+    const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
     const zonaColors = useMemo(() => {
         const m = {};
@@ -850,13 +851,33 @@ function MapaView({ locales, zonas, activeZona, activeDept, activeProv, activeDi
 
     return (
         <div className="flex flex-1 overflow-hidden">
-            <Sidebar
-                locales={locales} zonas={zonas}
-                activeZona={activeZona} activeDept={activeDept} activeProv={activeProv} activeDist={activeDist}
-                onSelectZona={onSelectZona} onSelectDept={onSelectDept} onSelectProv={onSelectProv} onSelectDist={onSelectDist}
-                showCounts={true}
-                user={user}
-            />
+            <div className="hidden md:block">
+                <Sidebar
+                    locales={locales} zonas={zonas}
+                    activeZona={activeZona} activeDept={activeDept} activeProv={activeProv} activeDist={activeDist}
+                    onSelectZona={onSelectZona} onSelectDept={onSelectDept} onSelectProv={onSelectProv} onSelectDist={onSelectDist}
+                    showCounts={true}
+                    user={user}
+                />
+            </div>
+
+            {mobileFiltersOpen && (
+                <div className="fixed inset-0 z-50 md:hidden">
+                    <div className="absolute inset-0 bg-black/50" onClick={() => setMobileFiltersOpen(false)} />
+                    <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-white shadow-xl">
+                        <Sidebar
+                            locales={locales} zonas={zonas}
+                            activeZona={activeZona} activeDept={activeDept} activeProv={activeProv} activeDist={activeDist}
+                            onSelectZona={(zona) => { onSelectZona(zona); setMobileFiltersOpen(false); }}
+                            onSelectDept={(zona, dept) => { onSelectDept(zona, dept); setMobileFiltersOpen(false); }}
+                            onSelectProv={(zona, dept, prov) => { onSelectProv(zona, dept, prov); setMobileFiltersOpen(false); }}
+                            onSelectDist={(zona, dept, prov, dist) => { onSelectDist(zona, dept, prov, dist); setMobileFiltersOpen(false); }}
+                            showCounts={true}
+                            user={user}
+                        />
+                    </div>
+                </div>
+            )}
 
             <div className="flex flex-1 overflow-hidden">
                 <div className="flex-1 relative bg-gray-100">
@@ -873,14 +894,21 @@ function MapaView({ locales, zonas, activeZona, activeDept, activeProv, activeDi
                     )}
 
                     {/* Contador */}
-                    <div className="absolute top-3 left-3 z-10">
+                    <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setMobileFiltersOpen(true)}
+                            className="md:hidden bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm"
+                        >
+                            Filtros
+                        </button>
                         <span className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm">
                             {filtered.length} locales
                         </span>
                     </div>
 
                     {/* Leyenda estados pantalla */}
-                    <div className="absolute bottom-4 left-3 z-10 bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-sm">
+                    <div className="hidden sm:block absolute bottom-4 left-3 z-10 bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-sm">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Estado de pantallas</p>
                         <div className="space-y-1.5">
                             {Object.entries(ESTADOS_PANTALLA_COLORS).map(([estado, color]) => (
@@ -896,7 +924,7 @@ function MapaView({ locales, zonas, activeZona, activeDept, activeProv, activeDi
                 </div>
 
                 {/* Lista lateral */}
-                <div className="w-64 bg-white border-l border-gray-200 overflow-y-auto">
+                <div className="hidden lg:block w-64 bg-white border-l border-gray-200 overflow-y-auto">
                     <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
                         <p className="text-xs font-semibold text-gray-600">{filtered.length} local{filtered.length !== 1 ? 'es' : ''}</p>
                     </div>
@@ -939,6 +967,7 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
     const [activeProv, setActiveProv]   = useState(null);
     const [activeDist, setActiveDist]   = useState(null);
     const [focusLocal, setFocusLocal]   = useState(null);
+    const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
     const handleSerieSubmit = (e) => {
         e.preventDefault();
@@ -996,18 +1025,18 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
             <Head title="Directorio Locales" />
 
             {/* ── Barra de navegación ────────────────────────────────────── */}
-            <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-3 sticky top-0 z-40 flex-shrink-0">
+            <header className="bg-white border-b border-gray-200 flex flex-wrap items-center px-3 sm:px-4 py-2 gap-2 sticky top-0 z-40 flex-shrink-0 md:h-14 md:flex-nowrap">
                 {/* Logo */}
                 <Link href="/directorio" className="flex items-center gap-2 flex-shrink-0">
                     <img src="/claro-estado-averia.svg" alt="Claro" className="w-8 h-8" />
-                    <span className="text-sm text-gray-700">
+                    <span className="text-sm text-gray-700 hidden sm:inline">
                         Claro<span className="font-black text-gray-900">Locales</span>
                     </span>
                 </Link>
 
                 {/* Búsquedas (centro) */}
-                <div className="flex flex-1 items-center justify-center gap-2 max-w-xl mx-auto">
-                    <div className="relative flex-1">
+                <div className="order-3 flex w-full items-center justify-center gap-2 md:order-none md:flex-1 md:max-w-xl md:mx-auto">
+                    <div className="relative min-w-0 flex-1">
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"><IcoSearch /></span>
                         <input
                             type="text"
@@ -1017,7 +1046,7 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
                             className="w-full pl-8 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-red-300 bg-gray-50"
                         />
                     </div>
-                    <form onSubmit={handleSerieSubmit} className="relative flex-1">
+                    <form onSubmit={handleSerieSubmit} className="relative min-w-0 flex-1">
                         <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"><IcoSerie /></span>
                         <input
                             type="text"
@@ -1030,7 +1059,14 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
                 </div>
 
                 {/* Derecha: Lista / Mapa / Administración */}
-                <div className="flex items-center gap-1 flex-shrink-0">
+                <div className="ml-auto flex items-center gap-1 flex-shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => setMobileFiltersOpen(true)}
+                        className="md:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-100"
+                    >
+                        Filtros
+                    </button>
                     <button
                         onClick={() => setView('list')}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -1052,7 +1088,7 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
                             href="/admin/dashboard"
                             className="flex items-center gap-1.5 ml-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                         >
-                            <IcoUser /> Administración
+                            <IcoUser /> <span className="hidden sm:inline">Administración</span>
                         </Link>
                     )}
                 </div>
@@ -1060,7 +1096,29 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
 
 
             {/* ── Cuerpo ─────────────────────────────────────────────────── */}
-            <div className="flex overflow-hidden" style={{ height: serieBuscada ? 'calc(100vh - 92px)' : 'calc(100vh - 56px)' }}>
+            <div className={`flex overflow-hidden ${serieBuscada ? 'h-[calc(100vh-132px)] md:h-[calc(100vh-92px)]' : 'h-[calc(100vh-104px)] md:h-[calc(100vh-56px)]'}`}>
+
+                {mobileFiltersOpen && (
+                    <div className="fixed inset-0 z-50 md:hidden">
+                        <div className="absolute inset-0 bg-black/50" onClick={() => setMobileFiltersOpen(false)} />
+                        <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-white shadow-xl">
+                            <Sidebar
+                                locales={locales}
+                                zonas={zonas}
+                                activeZona={activeZona}
+                                activeDept={activeDept}
+                                activeProv={activeProv}
+                                activeDist={activeDist}
+                                onSelectZona={(zona) => { handleSelectZona(zona); setMobileFiltersOpen(false); }}
+                                onSelectDept={(zona, dept) => { handleSelectDept(zona, dept); setMobileFiltersOpen(false); }}
+                                onSelectProv={(zona, dept, prov) => { handleSelectProv(zona, dept, prov); setMobileFiltersOpen(false); }}
+                                onSelectDist={(zona, dept, prov, dist) => { handleSelectDist(zona, dept, prov, dist); setMobileFiltersOpen(false); }}
+                                showCounts={false}
+                                user={user}
+                            />
+                        </div>
+                    </div>
+                )}
 
                 {view === 'map' ? (
                     <MapaView
@@ -1080,25 +1138,27 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
                 ) : (
                     <>
                         {/* Sidebar lista */}
-                        <Sidebar
-                            locales={locales}
-                            zonas={zonas}
-                            activeZona={activeZona}
-                            activeDept={activeDept}
-                            activeProv={activeProv}
-                            activeDist={activeDist}
-                            onSelectZona={handleSelectZona}
-                            onSelectDept={handleSelectDept}
-                            onSelectProv={handleSelectProv}
-                            onSelectDist={handleSelectDist}
-                            showCounts={false}
-                            user={user}
-                        />
+                        <div className="hidden md:block">
+                            <Sidebar
+                                locales={locales}
+                                zonas={zonas}
+                                activeZona={activeZona}
+                                activeDept={activeDept}
+                                activeProv={activeProv}
+                                activeDist={activeDist}
+                                onSelectZona={handleSelectZona}
+                                onSelectDept={handleSelectDept}
+                                onSelectProv={handleSelectProv}
+                                onSelectDist={handleSelectDist}
+                                showCounts={false}
+                                user={user}
+                            />
+                        </div>
 
                         {/* Contenido principal */}
                         <main className="flex-1 overflow-y-auto bg-gray-50">
                             {/* Encabezado de sección */}
-                            <div className="flex items-start justify-between px-5 pt-5 pb-3 bg-white border-b border-gray-100">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between px-4 sm:px-5 pt-5 pb-3 bg-white border-b border-gray-100">
                                 <div>
                                     <h1 className="text-base font-bold text-gray-900">
                                         {breadcrumb.length > 0 ? breadcrumb[breadcrumb.length - 1] : 'Todos los locales'}
@@ -1108,7 +1168,7 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
                                     </p>
                                 </div>
                                 {/* Filtros de tipo */}
-                                <div className="flex items-center gap-1.5">
+                                <div className="flex flex-wrap items-center gap-1.5">
                                     {TIPOS.map(tipo => {
                                         const s = TIPO_BADGE[tipo] || { bg: '#F3F4F6', color: '#6B7280' };
                                         const active = activeTipos.includes(tipo);
@@ -1140,10 +1200,10 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
                                     <p className="text-xs text-gray-400 mt-1">Prueba con otros filtros o términos</p>
                                 </div>
                             ) : (
-                                <div className={`p-4 grid gap-3 ${
+                                <div className={`p-3 sm:p-4 grid gap-3 ${
                                     selectedLocal
-                                        ? 'grid-cols-2 lg:grid-cols-3'
-                                        : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
+                                        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                                        : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4'
                                 }`}>
                                     {filtered.map(local => (
                                         <LocalCard

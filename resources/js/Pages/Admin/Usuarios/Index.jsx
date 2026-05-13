@@ -100,7 +100,7 @@ function UsuarioForm({ form, isEdit, onSubmit }) {
                 />
             </FieldGroup>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FieldGroup label="Rol" error={errors.rol}>
                     <select
                         value={data.rol}

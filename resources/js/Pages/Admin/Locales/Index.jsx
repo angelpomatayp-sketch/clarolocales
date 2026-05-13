@@ -111,7 +111,7 @@ function LocationPicker({ open, onClose, data, setData }) {
                 <div className="rounded-xl overflow-hidden border border-gray-200 h-80">
                     <div ref={mapEl} className="h-full w-full" />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <FieldGroup label="Latitud">
                         <Input value={data.lat || ''} onChange={(e) => setData('lat', e.target.value)} placeholder="-12.0651000" />
                     </FieldGroup>
@@ -277,7 +277,7 @@ function LocalForm({ form, isEdit, zonaMap, onSubmit }) {
                 <Input value={data.nombre} onChange={(e) => setData('nombre', e.target.value)} placeholder="Nombre del local" error={errors.nombre} />
             </FieldGroup>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FieldGroup label="Tipo" error={errors.tipo}>
                     <Select value={data.tipo} onChange={(e) => setData('tipo', e.target.value)} error={errors.tipo}>
                         <option value="">Seleccionar tipo</option>
@@ -292,7 +292,7 @@ function LocalForm({ form, isEdit, zonaMap, onSubmit }) {
                 </FieldGroup>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FieldGroup label="Departamento" error={errors.departamento}>
                     <Select value={data.departamento} onChange={handleDeptChange} error={errors.departamento}>
                         <option value="">Seleccionar departamento</option>
@@ -313,7 +313,7 @@ function LocalForm({ form, isEdit, zonaMap, onSubmit }) {
                 </FieldGroup>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FieldGroup label="Provincia" error={errors.provincia}>
                     <Select value={data.provincia} onChange={handleProvChange} disabled={!data.departamento} error={errors.provincia}>
                         <option value="">Seleccionar provincia</option>
@@ -365,7 +365,7 @@ function LocalForm({ form, isEdit, zonaMap, onSubmit }) {
 
             <div className="border-t border-gray-100 pt-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Encargado / Contacto</p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FieldGroup label="Nombre del encargado" error={errors.contacto_nombre}>
                         <Input value={data.contacto_nombre} onChange={(e) => setData('contacto_nombre', e.target.value)} placeholder="Juan Pérez" error={errors.contacto_nombre} />
                     </FieldGroup>
