@@ -83,12 +83,12 @@ export default function TwoFactorChallenge({ email, setupRequired, qrSvg, manual
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="two-factor-title"
-                        className="max-h-[calc(100vh-1.5rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:max-h-[calc(100vh-2rem)] sm:p-6"
+                        className="max-h-[calc(100vh-1rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-2xl sm:max-h-[calc(100vh-1.5rem)] lg:max-w-[430px]"
                     >
-                        <div className="mb-4 flex items-center gap-3 sm:mb-6">
-                            <img src="/claro-estado-averia.svg" alt="Claro" className="h-10 w-10 rounded-xl sm:h-11 sm:w-11" />
+                        <div className="mb-3 flex items-center gap-3">
+                            <img src="/claro-estado-averia.svg" alt="Claro" className="h-9 w-9 rounded-xl sm:h-10 sm:w-10" />
                             <div>
-                                <h1 id="two-factor-title" className="text-lg font-bold text-gray-900 sm:text-xl">Verificación 2FA</h1>
+                                <h1 id="two-factor-title" className="text-lg font-bold text-gray-900">Verificación 2FA</h1>
                                 <p className="text-xs text-gray-400">{email}</p>
                             </div>
                         </div>
@@ -100,14 +100,14 @@ export default function TwoFactorChallenge({ email, setupRequired, qrSvg, manual
                         )}
 
                         {setupRequired ? (
-                            <div className="mb-4 rounded-xl border border-red-100 bg-red-50 p-3 sm:mb-5 sm:p-4">
-                                <p className="mb-2 text-sm font-semibold text-gray-900">Configura tu autenticador</p>
-                                <p className="mb-3 text-xs text-gray-600 sm:mb-4">
+                            <div className="mb-3 rounded-xl border border-red-100 bg-red-50 p-3">
+                                <p className="mb-1.5 text-sm font-semibold text-gray-900">Configura tu autenticador</p>
+                                <p className="mb-2 text-xs leading-snug text-gray-600">
                                     Escanea este código con Google Authenticator, Microsoft Authenticator o una app compatible.
                                 </p>
                                 {qrSvg && (
                                     <div
-                                        className="mx-auto mb-3 flex w-fit max-w-[210px] rounded-xl bg-white p-2 shadow-sm [&_svg]:h-auto [&_svg]:max-h-[190px] [&_svg]:w-full sm:max-w-none sm:p-3 sm:[&_svg]:max-h-[220px]"
+                                        className="mx-auto mb-2 flex w-fit max-w-[180px] rounded-xl bg-white p-2 shadow-sm [&_svg]:h-auto [&_svg]:max-h-[170px] [&_svg]:w-full"
                                         dangerouslySetInnerHTML={{ __html: qrSvg }}
                                     />
                                 )}
@@ -131,12 +131,12 @@ export default function TwoFactorChallenge({ email, setupRequired, qrSvg, manual
                                 )}
                             </div>
                         ) : (
-                            <p className="mb-5 text-sm text-gray-600">
+                            <p className="mb-3 text-sm text-gray-600">
                                 Ingresa el código de 6 dígitos de tu aplicación autenticadora.
                             </p>
                         )}
 
-                        <form onSubmit={submit} className="space-y-3 sm:space-y-4">
+                        <form onSubmit={submit} className="space-y-3">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Código de verificación</label>
                                 <input
@@ -147,7 +147,7 @@ export default function TwoFactorChallenge({ email, setupRequired, qrSvg, manual
                                     value={data.code}
                                     onChange={(e) => setData('code', e.target.value.replace(/\D/g, '').slice(0, 6))}
                                     autoFocus
-                                    className={`w-full rounded-xl border px-4 py-2.5 text-center font-mono text-lg tracking-[0.35em] focus:outline-none focus:ring-2 sm:py-3 ${
+                                    className={`w-full rounded-xl border px-4 py-2.5 text-center font-mono text-base tracking-[0.35em] focus:outline-none focus:ring-2 ${
                                         errors.code
                                             ? 'border-red-400 bg-red-50 focus:ring-red-200'
                                             : 'border-gray-200 bg-gray-50 focus:border-red-400 focus:ring-red-100'
@@ -160,7 +160,7 @@ export default function TwoFactorChallenge({ email, setupRequired, qrSvg, manual
                             <button
                                 type="submit"
                                 disabled={processing || data.code.length !== 6}
-                                className="w-full rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60 sm:py-3"
+                                className="w-full rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-60"
                             >
                                 {setupRequired ? 'Confirmar y entrar' : 'Verificar y entrar'}
                             </button>
