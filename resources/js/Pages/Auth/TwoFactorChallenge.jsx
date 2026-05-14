@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Head, router, useForm } from '@inertiajs/react';
 
 export default function TwoFactorChallenge({ email, setupRequired, qrSvg, manualKey, status }) {
+    const [showManualKey, setShowManualKey] = useState(false);
     const { data, setData, post, processing, errors } = useForm({ code: '' });
 
     const submit = (e) => {
@@ -111,8 +113,20 @@ export default function TwoFactorChallenge({ email, setupRequired, qrSvg, manual
                                 )}
                                 {manualKey && (
                                     <div className="rounded-lg bg-white px-3 py-2">
-                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Clave manual</p>
-                                        <p className="break-all font-mono text-xs text-gray-700">{manualKey}</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowManualKey((visible) => !visible)}
+                                            className="text-xs font-semibold text-gray-500 underline-offset-2 hover:text-gray-700 hover:underline"
+                                        >
+                                            {showManualKey ? 'Ocultar clave manual' : 'No puedo escanear el QR'}
+                                        </button>
+
+                                        {showManualKey && (
+                                            <div className="mt-2 border-t border-gray-100 pt-2">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Clave manual</p>
+                                                <p className="break-all font-mono text-xs text-gray-700">{manualKey}</p>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
