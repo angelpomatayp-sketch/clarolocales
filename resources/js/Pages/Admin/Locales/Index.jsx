@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { getDepartamentos, getProvincias, getDistritos } from '@/data/ubigeo';
+import { Loader } from '@googlemaps/js-api-loader';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -35,6 +36,23 @@ const ZONA_COLORS = {
 };
 
 const PAGE_SIZE = 10;
+const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || '';
+
+let googleMapsPromise = null;
+
+function loadGoogleMaps() {
+    if (!GOOGLE_MAPS_KEY) return Promise.resolve(null);
+
+    if (!googleMapsPromise) {
+        googleMapsPromise = new Loader({
+            apiKey: GOOGLE_MAPS_KEY,
+            version: 'weekly',
+        }).load();
+    }
+
+    return googleMapsPromise;
+}
 
 const MAP_PIN = L.divIcon({
     className: '',
@@ -53,34 +71,160 @@ function buildFullAddress(data) {
     ].filter(Boolean).join(', ');
 }
 
+function buildAddressAttempts(data) {
+    return [
+        buildFullAddress(data),
+        [data.direccion, data.distrito, data.provincia, data.departamento, 'Perú'].filter(Boolean).join(', '),
+        [data.distrito, data.provincia, data.departamento, 'Perú'].filter(Boolean).join(', '),
+    ].filter((address, index, addresses) => address && addresses.indexOf(address) === index);
+}
+
+async function geocodeWithGoogle(data) {
+    const google = await loadGoogleMaps();
+    if (!google?.maps) return null;
+
+    const { Geocoder } = await google.maps.importLibrary('geocoding');
+    const geocoder = new Geocoder();
+
+    for (const address of buildAddressAttempts(data)) {
+        const { results } = await geocoder.geocode({
+            address,
+            componentRestrictions: { country: 'PE' },
+        });
+
+        if (results?.length) {
+            const location = results[0].geometry.location;
+            return {
+                lat: location.lat().toFixed(7),
+                lng: location.lng().toFixed(7),
+                provider: 'google',
+            };
+        }
+    }
+
+    return null;
+}
+
+async function geocodeWithOpenStreetMap(data) {
+    for (const address of buildAddressAttempts(data)) {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pe&q=${encodeURIComponent(address)}`);
+        const results = await response.json();
+
+        if (Array.isArray(results) && results.length > 0) {
+            return {
+                lat: parseFloat(results[0].lat).toFixed(7),
+                lng: parseFloat(results[0].lon).toFixed(7),
+                provider: 'osm',
+            };
+        }
+    }
+
+    return null;
+}
+
+async function geocodeAddressData(data) {
+    return await geocodeWithGoogle(data) ?? await geocodeWithOpenStreetMap(data);
+}
+
 function LocationPicker({ open, onClose, data, setData }) {
     const mapEl = useRef(null);
     const map = useRef(null);
     const marker = useRef(null);
+    const mapProvider = useRef(null);
+
+    const setCoords = (lat, lng) => {
+        setData('lat', Number(lat).toFixed(7));
+        setData('lng', Number(lng).toFixed(7));
+    };
 
     useEffect(() => {
         if (!open || !mapEl.current || map.current) return;
 
-        const lat = parseFloat(data.lat) || -9.189967;
-        const lng = parseFloat(data.lng) || -75.015152;
-        const zoom = data.lat && data.lng ? 16 : 5;
+        let cancelled = false;
 
-        map.current = L.map(mapEl.current).setView([lat, lng], zoom);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap',
-        }).addTo(map.current);
+        const initialize = async () => {
+            let lat = parseFloat(data.lat);
+            let lng = parseFloat(data.lng);
+            let zoom = data.lat && data.lng ? 17 : 6;
 
-        marker.current = L.marker([lat, lng], { draggable: true, icon: MAP_PIN }).addTo(map.current);
-        marker.current.on('dragend', () => {
-            const pos = marker.current.getLatLng();
-            setData({ ...data, lat: pos.lat.toFixed(7), lng: pos.lng.toFixed(7) });
-        });
-        map.current.on('click', (event) => {
-            marker.current.setLatLng(event.latlng);
-            setData({ ...data, lat: event.latlng.lat.toFixed(7), lng: event.latlng.lng.toFixed(7) });
-        });
+            if ((Number.isNaN(lat) || Number.isNaN(lng)) && data.departamento) {
+                const coords = await geocodeAddressData(data).catch(() => null);
+                if (coords) {
+                    lat = parseFloat(coords.lat);
+                    lng = parseFloat(coords.lng);
+                    zoom = coords.provider === 'google' ? 17 : 15;
+                    if (!cancelled) setData({ ...data, lat: coords.lat, lng: coords.lng });
+                }
+            }
 
-        setTimeout(() => map.current?.invalidateSize(), 150);
+            if (Number.isNaN(lat) || Number.isNaN(lng)) {
+                lat = -9.189967;
+                lng = -75.015152;
+                zoom = 5;
+            }
+
+            const google = await loadGoogleMaps().catch(() => null);
+
+            if (cancelled || !mapEl.current) return;
+
+            if (google?.maps) {
+                mapProvider.current = 'google';
+
+                const center = { lat, lng };
+                map.current = new google.maps.Map(mapEl.current, {
+                    center,
+                    zoom,
+                    mapId: GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID',
+                    mapTypeId: 'roadmap',
+                    streetViewControl: true,
+                    fullscreenControl: true,
+                    mapTypeControl: true,
+                    zoomControl: true,
+                });
+
+                marker.current = new google.maps.Marker({
+                    map: map.current,
+                    position: center,
+                    draggable: true,
+                    title: data.nombre || 'Local',
+                });
+
+                marker.current.addListener('dragend', (event) => {
+                    setCoords(event.latLng.lat(), event.latLng.lng());
+                });
+
+                map.current.addListener('click', (event) => {
+                    marker.current.setPosition(event.latLng);
+                    setCoords(event.latLng.lat(), event.latLng.lng());
+                });
+
+                return;
+            }
+
+            mapProvider.current = 'leaflet';
+            map.current = L.map(mapEl.current).setView([lat, lng], zoom);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap',
+            }).addTo(map.current);
+
+            marker.current = L.marker([lat, lng], { draggable: true, icon: MAP_PIN }).addTo(map.current);
+            marker.current.on('dragend', () => {
+                const pos = marker.current.getLatLng();
+                setCoords(pos.lat, pos.lng);
+            });
+            map.current.on('click', (event) => {
+                marker.current.setLatLng(event.latlng);
+                setCoords(event.latlng.lat, event.latlng.lng);
+            });
+
+            setTimeout(() => map.current?.invalidateSize(), 150);
+        };
+
+        initialize();
+
+        return () => {
+            cancelled = true;
+        };
     }, [open]);
 
     useEffect(() => {
@@ -89,6 +233,14 @@ function LocationPicker({ open, onClose, data, setData }) {
         const lat = parseFloat(data.lat);
         const lng = parseFloat(data.lng);
         if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+
+        if (mapProvider.current === 'google') {
+            const position = { lat, lng };
+            marker.current.setPosition(position);
+            map.current.setCenter(position);
+            map.current.setZoom(17);
+            return;
+        }
 
         marker.current.setLatLng([lat, lng]);
         map.current.setView([lat, lng], 16);
@@ -99,9 +251,12 @@ function LocationPicker({ open, onClose, data, setData }) {
         if (open) return;
 
         if (map.current) {
-            map.current.remove();
+            if (mapProvider.current === 'leaflet') {
+                map.current.remove();
+            }
             map.current = null;
             marker.current = null;
+            mapProvider.current = null;
         }
     }, [open]);
 
@@ -111,6 +266,11 @@ function LocationPicker({ open, onClose, data, setData }) {
                 <div className="rounded-xl overflow-hidden border border-gray-200 h-80">
                     <div ref={mapEl} className="h-full w-full" />
                 </div>
+                <p className="text-xs text-gray-400">
+                    {GOOGLE_MAPS_KEY
+                        ? 'Mapa de Google Maps. Arrastra el marcador o haz clic sobre el punto exacto.'
+                        : 'Google Maps no está configurado; se usa OpenStreetMap como respaldo.'}
+                </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <FieldGroup label="Latitud">
                         <Input value={data.lat || ''} onChange={(e) => setData('lat', e.target.value)} placeholder="-12.0651000" />
@@ -201,7 +361,6 @@ function LocalForm({ form, isEdit, zonaMap, onSubmit }) {
     const hasCoords = Boolean(data.lat && data.lng);
 
     const geocodeAddress = async ({ openMapOnSuccess = true, openMapOnFailure = true } = {}) => {
-        const address = buildFullAddress(data);
         setLocationError('');
 
         if (!data.direccion || !data.departamento) {
@@ -211,23 +370,19 @@ function LocalForm({ form, isEdit, zonaMap, onSubmit }) {
 
         setLocating(true);
         try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pe&q=${encodeURIComponent(address)}`);
-            const results = await response.json();
+            const coords = await geocodeAddressData(data);
 
-            if (!Array.isArray(results) || results.length === 0) {
+            if (!coords) {
                 setLocationError('No se encontró una ubicación clara. Ajusta la dirección o selecciona el punto en el mapa.');
                 if (openMapOnFailure) setMapOpen(true);
                 return null;
             }
 
-            const coords = {
-                lat: parseFloat(results[0].lat).toFixed(7),
-                lng: parseFloat(results[0].lon).toFixed(7),
-            };
+            const nextCoords = { lat: coords.lat, lng: coords.lng };
 
-            setData({ ...data, ...coords });
+            setData({ ...data, ...nextCoords });
             if (openMapOnSuccess) setMapOpen(true);
-            return coords;
+            return nextCoords;
         } catch {
             setLocationError('No se pudo consultar la ubicación. Puedes ajustar el punto manualmente en el mapa.');
             if (openMapOnFailure) setMapOpen(true);
