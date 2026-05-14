@@ -13,7 +13,17 @@ class UsuarioController extends Controller
     public function index()
     {
         return Inertia::render('Admin/Usuarios/Index', [
-            'usuarios' => User::orderBy('name')->get(['id','name','email','rol','zona','activo','created_at']),
+            'usuarios' => User::orderBy('name')->get([
+                'id',
+                'name',
+                'email',
+                'rol',
+                'zona',
+                'activo',
+                'two_factor_required',
+                'two_factor_confirmed_at',
+                'created_at',
+            ]),
         ]);
     }
 
@@ -23,6 +33,7 @@ class UsuarioController extends Controller
             'name' => 'required|string', 'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6', 'rol' => 'required|in:admin,supervisor,regional,operativo,usuario',
             'zona' => 'required_if:rol,regional|nullable|string', 'activo' => 'boolean',
+            'two_factor_required' => 'boolean',
         ]);
         if (($data['rol'] ?? null) !== 'regional') {
             $data['zona'] = null;
@@ -38,6 +49,7 @@ class UsuarioController extends Controller
             'name' => 'required|string', 'email' => 'required|email|unique:users,email,'.$usuario->id,
             'rol' => 'required|in:admin,supervisor,regional,operativo,usuario',
             'zona' => 'required_if:rol,regional|nullable|string', 'activo' => 'boolean',
+            'two_factor_required' => 'boolean',
             'password' => 'nullable|string|min:6',
         ]);
 
@@ -56,7 +68,25 @@ class UsuarioController extends Controller
         } else {
             unset($data['password']);
         }
+
+        if (! ($data['two_factor_required'] ?? false)) {
+            $data['two_factor_secret'] = null;
+            $data['two_factor_confirmed_at'] = null;
+        }
+
         $usuario->update($data);
+        return back();
+    }
+
+    public function resetTwoFactor(User $usuario)
+    {
+        abort_unless(auth()->user()?->rol === 'admin', 403, 'Sin permisos para restablecer 2FA.');
+
+        $usuario->forceFill([
+            'two_factor_secret' => null,
+            'two_factor_confirmed_at' => null,
+        ])->save();
+
         return back();
     }
 

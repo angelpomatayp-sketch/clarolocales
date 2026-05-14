@@ -36,6 +36,8 @@ Route::middleware(['auth', 'role:admin,supervisor,operativo'])->prefix('admin')-
     });
 
     Route::middleware('role:admin')->group(function () {
+        Route::post('/usuarios/{usuario}/reset-2fa', [UsuarioController::class, 'resetTwoFactor'])
+            ->name('usuarios.reset-2fa');
         Route::resource('usuarios', UsuarioController::class)->except(['show']);
     });
 });

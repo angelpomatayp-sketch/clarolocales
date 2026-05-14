@@ -145,6 +145,22 @@ function UsuarioForm({ form, isEdit, onSubmit }) {
                 </button>
             </div>
 
+            <div className="flex items-center justify-between gap-4 py-2 px-3.5 border border-gray-200 rounded-lg">
+                <div>
+                    <p className="text-sm font-medium text-gray-700">Requiere 2FA</p>
+                    <p className="text-xs text-gray-400">Pedirá código de app autenticadora al iniciar sesión</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => setData('two_factor_required', !data.two_factor_required)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${data.two_factor_required ? 'bg-red-600' : 'bg-gray-300'}`}
+                >
+                    <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${data.two_factor_required ? 'translate-x-6' : 'translate-x-1'}`}
+                    />
+                </button>
+            </div>
+
             <div className="flex justify-end gap-3 pt-2">
                 <button
                     type="submit"
@@ -185,7 +201,7 @@ function Avatar({ name }) {
     );
 }
 
-const EMPTY_FORM = { name: '', email: '', password: '', rol: '', zona: '', activo: true };
+const EMPTY_FORM = { name: '', email: '', password: '', rol: '', zona: '', activo: true, two_factor_required: false };
 
 export default function UsuariosIndex({ usuarios = [] }) {
     const user = usePage().props.auth?.user || {};
@@ -217,6 +233,7 @@ export default function UsuariosIndex({ usuarios = [] }) {
             rol: usuario.rol || '',
             zona: usuario.zona || '',
             activo: !!usuario.activo,
+            two_factor_required: !!usuario.two_factor_required,
         });
         setEditUsuario(usuario);
     };
@@ -242,6 +259,10 @@ export default function UsuariosIndex({ usuarios = [] }) {
         router.delete('/admin/usuarios/' + deleteUsuario.id, {
             onSuccess: () => setDeleteUsuario(null),
         });
+    };
+
+    const resetTwoFactor = (usuario) => {
+        router.post('/admin/usuarios/' + usuario.id + '/reset-2fa');
     };
 
     const toggleActivo = (usuario) => {
@@ -291,6 +312,7 @@ export default function UsuariosIndex({ usuarios = [] }) {
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Rol</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Zona</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
+                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">2FA</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
                                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
                             </tr>
@@ -298,7 +320,7 @@ export default function UsuariosIndex({ usuarios = [] }) {
                         <tbody>
                             {filtered.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-10 text-center text-gray-400 text-sm">
+                                    <td colSpan={7} className="px-4 py-10 text-center text-gray-400 text-sm">
                                         {search ? 'No se encontraron resultados.' : 'No hay usuarios registrados.'}
                                     </td>
                                 </tr>
@@ -334,6 +356,19 @@ export default function UsuariosIndex({ usuarios = [] }) {
                                                 {usuario.activo ? 'Activo' : 'Inactivo'}
                                             </button>
                                         </td>
+                                        <td className="px-4 py-3">
+                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                usuario.two_factor_required
+                                                    ? usuario.two_factor_confirmed_at
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : 'bg-amber-100 text-amber-700'
+                                                    : 'bg-gray-100 text-gray-600'
+                                            }`}>
+                                                {usuario.two_factor_required
+                                                    ? usuario.two_factor_confirmed_at ? 'Activo' : 'Pendiente'
+                                                    : 'No requerido'}
+                                            </span>
+                                        </td>
                                         <td className="px-4 py-3 text-xs text-gray-400">{formatDate(usuario.created_at)}</td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-1">
@@ -345,6 +380,17 @@ export default function UsuariosIndex({ usuarios = [] }) {
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                     </svg>
                                                 </button>
+                                                {usuario.two_factor_required && usuario.two_factor_confirmed_at && (
+                                                    <button
+                                                        onClick={() => resetTwoFactor(usuario)}
+                                                        title="Restablecer 2FA"
+                                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11V7m0 4l-3-3m3 3l3-3M5 12a7 7 0 111.64 4.48L5 19v-7z" />
+                                                        </svg>
+                                                    </button>
+                                                )}
                                                 {usuario.id !== user.id && (
                                                     <button
                                                         onClick={() => setDeleteUsuario(usuario)}
