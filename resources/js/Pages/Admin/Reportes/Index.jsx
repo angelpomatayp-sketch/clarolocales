@@ -92,6 +92,7 @@ export default function ReportesIndex({ filters = {}, options = {}, summary = {}
         fecha_desde: filters.fecha_desde || '',
         fecha_hasta: filters.fecha_hasta || '',
     });
+    const [filtering, setFiltering] = useState(false);
 
     const headers = HEADERS[form.reporte] || HEADERS.pantallas;
 
@@ -125,6 +126,8 @@ export default function ReportesIndex({ filters = {}, options = {}, summary = {}
                 router.get('/admin/reportes', cleanParams(next), {
                     preserveScroll: true,
                     preserveState: true,
+                    onStart: () => setFiltering(true),
+                    onFinish: () => setFiltering(false),
                 });
             }
             return next;
@@ -135,6 +138,8 @@ export default function ReportesIndex({ filters = {}, options = {}, summary = {}
         router.get('/admin/reportes', params, {
             preserveScroll: true,
             preserveState: true,
+            onStart: () => setFiltering(true),
+            onFinish: () => setFiltering(false),
         });
     };
 
@@ -154,6 +159,8 @@ export default function ReportesIndex({ filters = {}, options = {}, summary = {}
         router.get('/admin/reportes', { reporte: form.reporte }, {
             preserveScroll: true,
             preserveState: true,
+            onStart: () => setFiltering(true),
+            onFinish: () => setFiltering(false),
         });
     };
 
@@ -202,10 +209,18 @@ export default function ReportesIndex({ filters = {}, options = {}, summary = {}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 mt-5">
-                        <button onClick={applyFilters} className="px-4 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-semibold">
-                            Aplicar filtros
+                        <button
+                            onClick={applyFilters}
+                            disabled={filtering}
+                            className="px-4 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-semibold disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {filtering ? 'Aplicando...' : 'Aplicar filtros'}
                         </button>
-                        <button onClick={clearFilters} className="px-4 py-2.5 rounded-lg border border-gray-300 text-gray-600 text-sm hover:bg-gray-50">
+                        <button
+                            onClick={clearFilters}
+                            disabled={filtering}
+                            className="px-4 py-2.5 rounded-lg border border-gray-300 text-gray-600 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
                             Limpiar filtros
                         </button>
                     </div>

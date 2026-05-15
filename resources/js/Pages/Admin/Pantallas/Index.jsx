@@ -283,6 +283,7 @@ export default function PantallasIndex({ pantallas = [], locales = [], tipos = [
     const [createOpen, setCreateOpen] = useState(false);
     const [editPantalla, setEditPantalla] = useState(null);
     const [deletePantalla, setDeletePantalla] = useState(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
 
     const createForm = useForm({ ...EMPTY_FORM });
     const editForm = useForm({ ...EMPTY_FORM });
@@ -355,7 +356,9 @@ export default function PantallasIndex({ pantallas = [], locales = [], tipos = [
 
     const handleDelete = () => {
         router.delete('/admin/pantallas/' + deletePantalla.id, {
+            onStart: () => setDeleteProcessing(true),
             onSuccess: () => setDeletePantalla(null),
+            onFinish: () => setDeleteProcessing(false),
         });
     };
 
@@ -537,11 +540,19 @@ export default function PantallasIndex({ pantallas = [], locales = [], tipos = [
                             Esta acción no se puede deshacer.
                         </p>
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setDeletePantalla(null)} className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50">
+                            <button
+                                onClick={() => setDeletePantalla(null)}
+                                disabled={deleteProcessing}
+                                className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
                                 Cancelar
                             </button>
-                            <button onClick={handleDelete} className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
-                                Eliminar
+                            <button
+                                onClick={handleDelete}
+                                disabled={deleteProcessing}
+                                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {deleteProcessing ? 'Eliminando...' : 'Eliminar'}
                             </button>
                         </div>
                     </div>

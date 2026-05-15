@@ -209,6 +209,9 @@ export default function UsuariosIndex({ usuarios = [] }) {
     const [createOpen, setCreateOpen] = useState(false);
     const [editUsuario, setEditUsuario] = useState(null);
     const [deleteUsuario, setDeleteUsuario] = useState(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const [resettingTwoFactorId, setResettingTwoFactorId] = useState(null);
+    const [togglingUsuarioId, setTogglingUsuarioId] = useState(null);
 
     const createForm = useForm({ ...EMPTY_FORM });
     const editForm = useForm({ ...EMPTY_FORM });
@@ -257,18 +260,28 @@ export default function UsuariosIndex({ usuarios = [] }) {
 
     const handleDelete = () => {
         router.delete('/admin/usuarios/' + deleteUsuario.id, {
+            onStart: () => setDeleteProcessing(true),
             onSuccess: () => setDeleteUsuario(null),
+            onFinish: () => setDeleteProcessing(false),
         });
     };
 
     const resetTwoFactor = (usuario) => {
-        router.post('/admin/usuarios/' + usuario.id + '/reset-2fa');
+        router.post('/admin/usuarios/' + usuario.id + '/reset-2fa', {}, {
+            preserveScroll: true,
+            onStart: () => setResettingTwoFactorId(usuario.id),
+            onFinish: () => setResettingTwoFactorId(null),
+        });
     };
 
     const toggleActivo = (usuario) => {
         router.put('/admin/usuarios/' + usuario.id, {
             ...usuario,
             activo: !usuario.activo,
+        }, {
+            preserveScroll: true,
+            onStart: () => setTogglingUsuarioId(usuario.id),
+            onFinish: () => setTogglingUsuarioId(null),
         });
     };
 
@@ -347,13 +360,14 @@ export default function UsuariosIndex({ usuarios = [] }) {
                                         <td className="px-4 py-3">
                                             <button
                                                 onClick={() => toggleActivo(usuario)}
+                                                disabled={togglingUsuarioId === usuario.id}
                                                 className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
                                                     usuario.activo
                                                         ? 'bg-green-100 text-green-800 hover:bg-green-200'
                                                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                                }`}
+                                                } disabled:opacity-60 disabled:cursor-not-allowed`}
                                             >
-                                                {usuario.activo ? 'Activo' : 'Inactivo'}
+                                                {togglingUsuarioId === usuario.id ? 'Guardando...' : usuario.activo ? 'Activo' : 'Inactivo'}
                                             </button>
                                         </td>
                                         <td className="px-4 py-3">
@@ -383,12 +397,17 @@ export default function UsuariosIndex({ usuarios = [] }) {
                                                 {usuario.two_factor_required && usuario.two_factor_confirmed_at && (
                                                     <button
                                                         onClick={() => resetTwoFactor(usuario)}
+                                                        disabled={resettingTwoFactorId === usuario.id}
                                                         title="Restablecer 2FA"
-                                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600"
+                                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11V7m0 4l-3-3m3 3l3-3M5 12a7 7 0 111.64 4.48L5 19v-7z" />
-                                                        </svg>
+                                                        {resettingTwoFactorId === usuario.id ? (
+                                                            <span className="w-3.5 h-3.5 border-2 border-amber-300 border-t-transparent rounded-full animate-spin" />
+                                                        ) : (
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11V7m0 4l-3-3m3 3l3-3M5 12a7 7 0 111.64 4.48L5 19v-7z" />
+                                                            </svg>
+                                                        )}
                                                     </button>
                                                 )}
                                                 {usuario.id !== user.id && (
@@ -437,11 +456,19 @@ export default function UsuariosIndex({ usuarios = [] }) {
                             Esta acción no se puede deshacer.
                         </p>
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setDeleteUsuario(null)} className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50">
+                            <button
+                                onClick={() => setDeleteUsuario(null)}
+                                disabled={deleteProcessing}
+                                className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
                                 Cancelar
                             </button>
-                            <button onClick={handleDelete} className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
-                                Eliminar
+                            <button
+                                onClick={handleDelete}
+                                disabled={deleteProcessing}
+                                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {deleteProcessing ? 'Eliminando...' : 'Eliminar'}
                             </button>
                         </div>
                     </div>

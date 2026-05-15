@@ -155,6 +155,7 @@ export default function ZonasIndex({ zonas = [], deptoConZona = {} }) {
     const [createOpen, setCreateOpen] = useState(false);
     const [editZona, setEditZona] = useState(null);
     const [deleteZona, setDeleteZona] = useState(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
 
     const createForm = useForm({ nombre: '', color: COLOR_SWATCHES[0], departamentos: [] });
     const editForm = useForm({ nombre: '', color: '', departamentos: [] });
@@ -203,7 +204,9 @@ export default function ZonasIndex({ zonas = [], deptoConZona = {} }) {
 
     const handleDelete = () => {
         router.delete('/admin/zonas/' + deleteZona.id, {
+            onStart: () => setDeleteProcessing(true),
             onSuccess: () => setDeleteZona(null),
+            onFinish: () => setDeleteProcessing(false),
         });
     };
 
@@ -359,15 +362,17 @@ export default function ZonasIndex({ zonas = [], deptoConZona = {} }) {
                         <div className="flex justify-end gap-3">
                             <button
                                 onClick={() => setDeleteZona(null)}
-                                className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+                                disabled={deleteProcessing}
+                                className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 Cancelar
                             </button>
                             <button
                                 onClick={handleDelete}
-                                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700"
+                                disabled={deleteProcessing}
+                                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
-                                Eliminar
+                                {deleteProcessing ? 'Eliminando...' : 'Eliminar'}
                             </button>
                         </div>
                     </div>

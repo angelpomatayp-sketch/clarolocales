@@ -94,6 +94,7 @@ export default function TiposPantallaIndex({ tipos = [] }) {
     const [createOpen, setCreateOpen]   = useState(false);
     const [editTipo, setEditTipo]       = useState(null);
     const [deleteTipo, setDeleteTipo]   = useState(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
 
     const createForm = useForm({ nombre: '', descripcion: '', activo: true });
     const editForm   = useForm({ nombre: '', descripcion: '', activo: true });
@@ -119,7 +120,9 @@ export default function TiposPantallaIndex({ tipos = [] }) {
 
     const handleDelete = () => {
         router.delete('/admin/tipos-pantalla/' + deleteTipo.id, {
+            onStart: () => setDeleteProcessing(true),
             onSuccess: () => setDeleteTipo(null),
+            onFinish: () => setDeleteProcessing(false),
         });
     };
 
@@ -245,11 +248,19 @@ export default function TiposPantallaIndex({ tipos = [] }) {
                             Las pantallas que usen este tipo mantendrán el valor como texto pero ya no aparecerá en el selector.
                         </p>
                         <div className="flex justify-end gap-3">
-                            <button onClick={() => setDeleteTipo(null)} className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50">
+                            <button
+                                onClick={() => setDeleteTipo(null)}
+                                disabled={deleteProcessing}
+                                className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
                                 Cancelar
                             </button>
-                            <button onClick={handleDelete} className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
-                                Eliminar
+                            <button
+                                onClick={handleDelete}
+                                disabled={deleteProcessing}
+                                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-70 disabled:cursor-not-allowed"
+                            >
+                                {deleteProcessing ? 'Eliminando...' : 'Eliminar'}
                             </button>
                         </div>
                     </div>
