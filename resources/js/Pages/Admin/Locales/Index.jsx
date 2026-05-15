@@ -35,7 +35,17 @@ const ZONA_COLORS = {
     Lima: '#E30613',
 };
 
-const PAGE_SIZE = 10;
+const cleanParams = (params) => Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== '' && value !== null && value !== undefined)
+);
+
+const paginationPages = (current, last) => {
+    const pages = new Set([1, last]);
+    for (let page = current - 2; page <= current + 2; page += 1) {
+        if (page >= 1 && page <= last) pages.add(page);
+    }
+    return [...pages].sort((a, b) => a - b);
+};
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 const GOOGLE_MAPS_MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID || '';
 
@@ -588,97 +598,65 @@ const EMPTY_FORM = {
     motivo: '', registrar_historial: false,
 };
 
-export default function LocalesIndex({ locales = [], zonas = [], zonaMap = {} }) {
+export default function LocalesIndex({ locales = {}, zonas = [], zonaMap = {}, filters = {}, filterOptions = {} }) {
     const user = usePage().props.auth?.user || {};
     const canDelete = user.rol === 'admin';
-    const [search, setSearch] = useState('');
-    const [zonaFilter, setZonaFilter] = useState('');
-    const [tipoFilter, setTipoFilter] = useState('');
-    const [departamentoFilter, setDepartamentoFilter] = useState('');
-    const [provinciaFilter, setProvinciaFilter] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
+    const [search, setSearch] = useState(filters.search || '');
+    const [zonaFilter, setZonaFilter] = useState(filters.zona || '');
+    const [tipoFilter, setTipoFilter] = useState(filters.tipo || '');
+    const [departamentoFilter, setDepartamentoFilter] = useState(filters.departamento || '');
+    const [provinciaFilter, setProvinciaFilter] = useState(filters.provincia || '');
+    const [filtering, setFiltering] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
     const [editLocal, setEditLocal] = useState(null);
     const [deleteLocal, setDeleteLocal] = useState(null);
     const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const firstFilterRun = useRef(true);
 
     const createForm = useForm({ ...EMPTY_FORM });
     const editForm = useForm({ ...EMPTY_FORM });
 
-    const zonasFiltro = useMemo(() => {
-        return [
-            ...new Set(
-                locales
-                    .filter((l) => !tipoFilter || l.tipo === tipoFilter)
-                    .filter((l) => !departamentoFilter || l.departamento === departamentoFilter)
-                    .filter((l) => !provinciaFilter || l.provincia === provinciaFilter)
-                    .map((l) => l.zona)
-                    .filter(Boolean)
-            ),
-        ].sort((a, b) => a.localeCompare(b));
-    }, [locales, tipoFilter, departamentoFilter, provinciaFilter]);
-
-    const departamentos = useMemo(() => {
-        return [
-            ...new Set(
-                locales
-                    .filter((l) => !tipoFilter || l.tipo === tipoFilter)
-                    .filter((l) => !zonaFilter || l.zona === zonaFilter)
-                    .map((l) => l.departamento)
-                    .filter(Boolean)
-            ),
-        ].sort((a, b) => a.localeCompare(b));
-    }, [locales, tipoFilter, zonaFilter]);
-
-    const provincias = useMemo(() => {
-        return [
-            ...new Set(
-                locales
-                    .filter((l) => !tipoFilter || l.tipo === tipoFilter)
-                    .filter((l) => !zonaFilter || l.zona === zonaFilter)
-                    .filter((l) => !departamentoFilter || l.departamento === departamentoFilter)
-                    .map((l) => l.provincia)
-                    .filter(Boolean)
-            ),
-        ].sort((a, b) => a.localeCompare(b));
-    }, [locales, tipoFilter, zonaFilter, departamentoFilter]);
-
-    const filtered = useMemo(() => {
-        const q = search.toLowerCase();
-        return locales.filter(
-            (l) => {
-                const matchesSearch = !q ||
-                    l.nombre?.toLowerCase().includes(q) ||
-                    l.codigo?.toLowerCase().includes(q) ||
-                    l.zona?.toLowerCase().includes(q) ||
-                    l.departamento?.toLowerCase().includes(q);
-                const matchesZona = !zonaFilter || l.zona === zonaFilter;
-                const matchesTipo = !tipoFilter || l.tipo === tipoFilter;
-                const matchesDepartamento = !departamentoFilter || l.departamento === departamentoFilter;
-                const matchesProvincia = !provinciaFilter || l.provincia === provinciaFilter;
-
-                return matchesSearch && matchesZona && matchesTipo && matchesDepartamento && matchesProvincia;
-            }
-        );
-    }, [locales, search, zonaFilter, tipoFilter, departamentoFilter, provinciaFilter]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [search, zonaFilter, tipoFilter, departamentoFilter, provinciaFilter]);
-
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-    const safePage = Math.min(currentPage, totalPages);
-    const pageStart = (safePage - 1) * PAGE_SIZE;
-    const pageEnd = pageStart + PAGE_SIZE;
-    const paginated = filtered.slice(pageStart, pageEnd);
-
-    useEffect(() => {
-        if (currentPage > totalPages) {
-            setCurrentPage(totalPages);
-        }
-    }, [currentPage, totalPages]);
+    const rows = locales.data || [];
+    const currentPage = locales.current_page || 1;
+    const totalPages = locales.last_page || 1;
+    const pageStart = locales.from || 0;
+    const pageEnd = locales.to || 0;
+    const totalRecords = locales.total || 0;
+    const visiblePages = paginationPages(currentPage, totalPages);
+    const zonasFiltro = filterOptions.zonas || [];
+    const departamentos = filterOptions.departamentos || [];
+    const provincias = filterOptions.provincias || [];
 
     const hasFilters = Boolean(search || zonaFilter || tipoFilter || departamentoFilter || provinciaFilter);
+
+    const requestPage = (page = 1, options = {}) => {
+        router.get('/admin/locales', cleanParams({
+            search,
+            zona: zonaFilter,
+            tipo: tipoFilter,
+            departamento: departamentoFilter,
+            provincia: provinciaFilter,
+            page,
+        }), {
+            only: ['locales', 'filters', 'filterOptions'],
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+            onStart: () => setFiltering(true),
+            onFinish: () => setFiltering(false),
+            ...options,
+        });
+    };
+
+    useEffect(() => {
+        if (firstFilterRun.current) {
+            firstFilterRun.current = false;
+            return;
+        }
+
+        const timer = setTimeout(() => requestPage(1), 350);
+        return () => clearTimeout(timer);
+    }, [search, zonaFilter, tipoFilter, departamentoFilter, provinciaFilter]);
 
     const clearFilters = () => {
         setSearch('');
@@ -844,14 +822,14 @@ export default function LocalesIndex({ locales = [], zonas = [], zonaMap = {} })
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.length === 0 ? (
+                            {rows.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="px-4 py-10 text-center text-gray-400 text-sm">
                                         {search ? 'No se encontraron resultados para la búsqueda.' : 'No hay locales registrados.'}
                                     </td>
                                 </tr>
                             ) : (
-                                paginated.map((local) => (
+                                rows.map((local) => (
                                     <tr key={local.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                                         <td className="px-4 py-3 font-mono text-xs text-gray-500">{local.codigo}</td>
                                         <td className="px-4 py-3">
@@ -927,37 +905,38 @@ export default function LocalesIndex({ locales = [], zonas = [], zonaMap = {} })
                         </tbody>
                     </table>
                 </div>
-                {filtered.length > 0 && (
+                {totalRecords > 0 && (
                     <div className="px-4 py-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-gray-400">
                         <span>
-                            Mostrando {pageStart + 1}-{Math.min(pageEnd, filtered.length)} de {filtered.length} locales
-                            {filtered.length !== locales.length ? ` filtrados de ${locales.length}` : ''}
+                            Mostrando {pageStart}-{pageEnd} de {totalRecords} locales
+                            {filtering ? ' · Actualizando...' : ''}
                         </span>
                         {totalPages > 1 && (
                             <div className="flex items-center gap-1">
                                 <button
-                                    onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
-                                    disabled={safePage === 1}
+                                    onClick={() => requestPage(Math.max(1, currentPage - 1))}
+                                    disabled={currentPage === 1 || filtering}
                                     className="h-8 px-3 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     Anterior
                                 </button>
-                                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                                {visiblePages.map((page) => (
                                     <button
                                         key={page}
-                                        onClick={() => setCurrentPage(page)}
+                                        onClick={() => requestPage(page)}
+                                        disabled={filtering}
                                         className={`min-w-8 h-8 px-2 rounded-lg border text-xs font-medium ${
-                                            page === safePage
+                                            page === currentPage
                                                 ? 'bg-red-600 text-white border-red-600'
                                                 : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                                        }`}
+                                        } disabled:opacity-40 disabled:cursor-not-allowed`}
                                     >
                                         {page}
                                     </button>
                                 ))}
                                 <button
-                                    onClick={() => setCurrentPage(Math.min(totalPages, safePage + 1))}
-                                    disabled={safePage === totalPages}
+                                    onClick={() => requestPage(Math.min(totalPages, currentPage + 1))}
+                                    disabled={currentPage === totalPages || filtering}
                                     className="h-8 px-3 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     Siguiente

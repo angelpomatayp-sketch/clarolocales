@@ -15,12 +15,36 @@ use Inertia\Inertia;
 
 class PantallaController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $filters = [
+            'search' => trim((string) $request->query('search', '')),
+        ];
+
         return Inertia::render('Admin/Pantallas/Index', [
-            'pantallas' => Pantalla::with('local:id,codigo,nombre')->orderBy('codigo')->get(),
+            'pantallas' => Pantalla::query()
+                ->with('local:id,codigo,nombre')
+                ->when($filters['search'] !== '', function ($query) use ($filters) {
+                    $search = $filters['search'];
+                    $query->where(function ($query) use ($search) {
+                        $query->where('serie', 'like', "%{$search}%")
+                            ->orWhere('codigo', 'like', "%{$search}%")
+                            ->orWhere('modelo', 'like', "%{$search}%")
+                            ->orWhere('modelo_equipo', 'like', "%{$search}%")
+                            ->orWhere('marca', 'like', "%{$search}%")
+                            ->orWhere('numero_guia', 'like', "%{$search}%")
+                            ->orWhereHas('local', function ($query) use ($search) {
+                                $query->where('nombre', 'like', "%{$search}%")
+                                    ->orWhere('codigo', 'like', "%{$search}%");
+                            });
+                    });
+                })
+                ->orderBy('codigo')
+                ->paginate(10)
+                ->withQueryString(),
             'locales'   => Local::orderBy('codigo')->get(['id','codigo','nombre']),
             'tipos'     => TipoPantalla::where('activo', true)->orderBy('nombre')->pluck('nombre'),
+            'filters'   => $filters,
         ]);
     }
 

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { ESTADOS_PANTALLA, ESTADO_PANTALLA_BADGE as ESTADO_COLORS } from '@/constants/shared';
@@ -254,7 +254,17 @@ function formatDate(dateStr) {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-const PAGE_SIZE = 10;
+const cleanParams = (params) => Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== '' && value !== null && value !== undefined)
+);
+
+const paginationPages = (current, last) => {
+    const pages = new Set([1, last]);
+    for (let page = current - 2; page <= current + 2; page += 1) {
+        if (page >= 1 && page <= last) pages.add(page);
+    }
+    return [...pages].sort((a, b) => a - b);
+};
 
 const EMPTY_FORM = {
     codigo: '',
@@ -275,46 +285,48 @@ const EMPTY_FORM = {
     mantenimiento_motivo: '',
 };
 
-export default function PantallasIndex({ pantallas = [], locales = [], tipos = [] }) {
+export default function PantallasIndex({ pantallas = {}, locales = [], tipos = [], filters = {} }) {
     const user = usePage().props.auth?.user || {};
     const canDelete = user.rol === 'admin';
-    const [search, setSearch] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
+    const [search, setSearch] = useState(filters.search || '');
+    const [filtering, setFiltering] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
     const [editPantalla, setEditPantalla] = useState(null);
     const [deletePantalla, setDeletePantalla] = useState(null);
     const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const firstFilterRun = useRef(true);
 
     const createForm = useForm({ ...EMPTY_FORM });
     const editForm = useForm({ ...EMPTY_FORM });
 
-    const filtered = useMemo(() => {
-        const q = search.toLowerCase();
-        if (!q) return pantallas;
-        return pantallas.filter(
-            (p) =>
-                p.serie?.toLowerCase().includes(q) ||
-                p.codigo?.toLowerCase().includes(q) ||
-                p.modelo?.toLowerCase().includes(q) ||
-                p.local?.nombre?.toLowerCase().includes(q)
-        );
-    }, [pantallas, search]);
+    const rows = pantallas.data || [];
+    const currentPage = pantallas.current_page || 1;
+    const totalPages = pantallas.last_page || 1;
+    const pageStart = pantallas.from || 0;
+    const pageEnd = pantallas.to || 0;
+    const totalRecords = pantallas.total || 0;
+    const visiblePages = paginationPages(currentPage, totalPages);
+
+    const requestPage = (page = 1) => {
+        router.get('/admin/pantallas', cleanParams({ search, page }), {
+            only: ['pantallas', 'filters'],
+            preserveScroll: true,
+            preserveState: true,
+            replace: true,
+            onStart: () => setFiltering(true),
+            onFinish: () => setFiltering(false),
+        });
+    };
 
     useEffect(() => {
-        setCurrentPage(1);
-    }, [search]);
-
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-    const safePage = Math.min(currentPage, totalPages);
-    const pageStart = (safePage - 1) * PAGE_SIZE;
-    const pageEnd = pageStart + PAGE_SIZE;
-    const paginated = filtered.slice(pageStart, pageEnd);
-
-    useEffect(() => {
-        if (currentPage > totalPages) {
-            setCurrentPage(totalPages);
+        if (firstFilterRun.current) {
+            firstFilterRun.current = false;
+            return;
         }
-    }, [currentPage, totalPages]);
+
+        const timer = setTimeout(() => requestPage(1), 350);
+        return () => clearTimeout(timer);
+    }, [search]);
 
     const openEdit = (pantalla) => {
         editForm.setData({
@@ -409,14 +421,14 @@ export default function PantallasIndex({ pantallas = [], locales = [], tipos = [
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.length === 0 ? (
+                            {rows.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} className="px-4 py-10 text-center text-gray-400 text-sm">
                                         {search ? 'No se encontraron resultados.' : 'No hay pantallas registradas.'}
                                     </td>
                                 </tr>
                             ) : (
-                                paginated.map((pantalla) => (
+                                rows.map((pantalla) => (
                                     <tr key={pantalla.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                                         <td className="px-4 py-3 font-mono text-xs text-gray-500">{pantalla.codigo}</td>
                                         <td className="px-4 py-3 font-mono text-xs text-gray-700">{pantalla.serie}</td>
@@ -478,37 +490,38 @@ export default function PantallasIndex({ pantallas = [], locales = [], tipos = [
                         </tbody>
                     </table>
                 </div>
-                {filtered.length > 0 && (
+                {totalRecords > 0 && (
                     <div className="px-4 py-3 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-gray-400">
                         <span>
-                            Mostrando {pageStart + 1}-{Math.min(pageEnd, filtered.length)} de {filtered.length} pantallas
-                            {filtered.length !== pantallas.length ? ` filtradas de ${pantallas.length}` : ''}
+                            Mostrando {pageStart}-{pageEnd} de {totalRecords} pantallas
+                            {filtering ? ' · Actualizando...' : ''}
                         </span>
                         {totalPages > 1 && (
                             <div className="flex items-center gap-1">
                                 <button
-                                    onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
-                                    disabled={safePage === 1}
+                                    onClick={() => requestPage(Math.max(1, currentPage - 1))}
+                                    disabled={currentPage === 1 || filtering}
                                     className="h-8 px-3 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     Anterior
                                 </button>
-                                {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+                                {visiblePages.map((page) => (
                                     <button
                                         key={page}
-                                        onClick={() => setCurrentPage(page)}
+                                        onClick={() => requestPage(page)}
+                                        disabled={filtering}
                                         className={`min-w-8 h-8 px-2 rounded-lg border text-xs font-medium ${
-                                            page === safePage
+                                            page === currentPage
                                                 ? 'bg-red-600 text-white border-red-600'
                                                 : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                                        }`}
+                                        } disabled:opacity-40 disabled:cursor-not-allowed`}
                                     >
                                         {page}
                                     </button>
                                 ))}
                                 <button
-                                    onClick={() => setCurrentPage(Math.min(totalPages, safePage + 1))}
-                                    disabled={safePage === totalPages}
+                                    onClick={() => requestPage(Math.min(totalPages, currentPage + 1))}
+                                    disabled={currentPage === totalPages || filtering}
                                     className="h-8 px-3 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     Siguiente

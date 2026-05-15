@@ -13,12 +13,52 @@ use Inertia\Inertia;
 
 class LocalController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $locales = Local::withCount('pantallas')->orderBy('codigo')->get();
-        $zonas   = Zona::orderBy('nombre')->get(['id','nombre','color','departamentos']);
+        $filters = [
+            'search'       => trim((string) $request->query('search', '')),
+            'zona'         => (string) $request->query('zona', ''),
+            'tipo'         => (string) $request->query('tipo', ''),
+            'departamento' => (string) $request->query('departamento', ''),
+            'provincia'    => (string) $request->query('provincia', ''),
+        ];
+
+        $locales = Local::query()
+            ->withCount('pantallas')
+            ->when($filters['search'] !== '', function ($query) use ($filters) {
+                $search = $filters['search'];
+                $query->where(function ($query) use ($search) {
+                    $query->where('nombre', 'like', "%{$search}%")
+                        ->orWhere('codigo', 'like', "%{$search}%")
+                        ->orWhere('zona', 'like', "%{$search}%")
+                        ->orWhere('departamento', 'like', "%{$search}%")
+                        ->orWhere('provincia', 'like', "%{$search}%")
+                        ->orWhere('distrito', 'like', "%{$search}%")
+                        ->orWhere('direccion', 'like', "%{$search}%");
+                });
+            })
+            ->when($filters['zona'] !== '', fn ($query) => $query->where('zona', $filters['zona']))
+            ->when($filters['tipo'] !== '', fn ($query) => $query->where('tipo', $filters['tipo']))
+            ->when($filters['departamento'] !== '', fn ($query) => $query->where('departamento', $filters['departamento']))
+            ->when($filters['provincia'] !== '', fn ($query) => $query->where('provincia', $filters['provincia']))
+            ->orderBy('codigo')
+            ->paginate(10)
+            ->withQueryString();
+
+        $zonas = Zona::orderBy('nombre')->get(['id','nombre','color','departamentos']);
         $zonaMap = $zonas->flatMap(fn($z) => collect($z->departamentos)->mapWithKeys(fn($d) => [$d => $z->nombre]))->toArray();
-        return Inertia::render('Admin/Locales/Index', ['locales' => $locales, 'zonas' => $zonas, 'zonaMap' => $zonaMap]);
+
+        return Inertia::render('Admin/Locales/Index', [
+            'locales' => $locales,
+            'zonas' => $zonas,
+            'zonaMap' => $zonaMap,
+            'filters' => $filters,
+            'filterOptions' => [
+                'zonas' => $this->localOptions('zona', $filters),
+                'departamentos' => $this->localOptions('departamento', $filters),
+                'provincias' => $this->localOptions('provincia', $filters),
+            ],
+        ]);
     }
 
     public function store(Request $request)
@@ -115,6 +155,19 @@ class LocalController extends Controller
             ->pluck('codigo');
         $max   = $codes->map(fn($c) => (int) substr($c, strlen($prefix) + 1))->max() ?? 0;
         return $prefix . '-' . str_pad($max + 1, 3, '0', STR_PAD_LEFT);
+    }
+
+    private function localOptions(string $column, array $filters)
+    {
+        return Local::query()
+            ->when($column !== 'zona' && $filters['zona'] !== '', fn ($query) => $query->where('zona', $filters['zona']))
+            ->when($filters['tipo'] !== '', fn ($query) => $query->where('tipo', $filters['tipo']))
+            ->when($column === 'provincia' && $filters['departamento'] !== '', fn ($query) => $query->where('departamento', $filters['departamento']))
+            ->whereNotNull($column)
+            ->where($column, '<>', '')
+            ->distinct()
+            ->orderBy($column)
+            ->pluck($column);
     }
 
     public function destroy(Local $local)
