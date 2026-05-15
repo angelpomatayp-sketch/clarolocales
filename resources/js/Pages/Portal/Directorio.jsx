@@ -127,7 +127,7 @@ function Sidebar({
     const hasAnyFilter = activeZona || activeDept || activeProv || activeDist;
 
     return (
-        <aside className="w-56 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
+        <aside className="h-full w-56 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
             <div className="flex-1 overflow-y-auto">
                 <p className="px-4 pt-5 pb-2 text-[10px] font-bold tracking-widest text-gray-400 uppercase">
                     Regiones
@@ -1138,7 +1138,7 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
                 ) : (
                     <>
                         {/* Sidebar lista */}
-                        <div className="hidden md:block">
+                        <div className="hidden h-full md:block">
                             <Sidebar
                                 locales={locales}
                                 zonas={zonas}
