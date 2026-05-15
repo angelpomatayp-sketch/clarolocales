@@ -747,6 +747,11 @@ function MapaView({ locales, zonas, activeZona, activeDept, activeProv, activeDi
         return r;
     }, [locales, activeZona, activeDept, activeProv, activeDist]);
 
+    const filteredIds = useMemo(
+        () => new Set(filtered.map(local => String(local.id))),
+        [filtered]
+    );
+
     // Init Google Maps
     useEffect(() => {
         if (!mapRef.current || mapInst.current || !GOOGLE_MAPS_KEY) return;
@@ -812,15 +817,21 @@ function MapaView({ locales, zonas, activeZona, activeDept, activeProv, activeDi
         };
     }, []);
 
-    // Hover desde lista lateral → solo resalta marcador, sin panear
+    // Filtros y hover desde lista lateral → mostrar solo puntos filtrados.
     useEffect(() => {
         if (!mapReady) return;
         Object.entries(markersRef.current).forEach(([id, { marker, local, makeImg }]) => {
+            const isVisible = filteredIds.has(String(id));
             const isHover = String(id) === String(hoverId);
+            marker.map = isVisible ? mapInst.current : null;
             marker.content = makeImg(local.estado_pantalla, isHover ? 50 : 36);
             marker.zIndex  = isHover ? 999 : 1;
         });
-    }, [hoverId, mapReady]);
+        if (hoverId && !filteredIds.has(String(hoverId))) {
+            setHoverId(null);
+            infoWinRef.current?.close();
+        }
+    }, [filteredIds, hoverId, mapReady]);
 
     // Click desde lista lateral → centrar y abrir info
     function focusMarker(local) {
