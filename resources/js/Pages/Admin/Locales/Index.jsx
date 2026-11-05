@@ -1,12 +1,16 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
+import Modal from '@/Components/AppModal';
+import EmptyState from '@/Components/EmptyState';
+import { ListSkeleton } from '@/Components/LoadingState';
+import { RowAction, RowActions } from '@/Components/RowActions';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { getDepartamentos, getProvincias, getDistritos } from '@/data/ubigeo';
 import { Loader } from '@googlemaps/js-api-loader';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-const TIPOS = ['DAC', 'CAC', 'CADENA'];
+const TIPOS = ['DAC', 'CAC', 'CAV', 'CAA', 'CADENA'];
 const ESTADOS = [
     'Activo', 'Cerrado', 'En remodelación', 'Trasladado',
     'Nuevo local', 'Suspendido', 'Pendiente validación',
@@ -15,6 +19,8 @@ const ESTADOS = [
 const TIPO_COLORS = {
     DAC:    'bg-blue-100 text-blue-800',
     CAC:    'bg-purple-100 text-purple-800',
+    CAV:    'bg-emerald-100 text-emerald-800',
+    CAA:    'bg-cyan-100 text-cyan-800',
     CADENA: 'bg-orange-100 text-orange-800',
 };
 
@@ -33,6 +39,7 @@ const ZONA_COLORS = {
     Sur: '#16A34A',
     Centro: '#7C3AED',
     Lima: '#E30613',
+    'Lima Provincias': '#EA580C',
 };
 
 const cleanParams = (params) => Object.fromEntries(
@@ -299,27 +306,6 @@ function LocationPicker({ open, onClose, data, setData }) {
     );
 }
 
-function Modal({ open, onClose, title, children, size = 'lg' }) {
-    if (!open) return null;
-    const widths = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-xl', '2xl': 'max-w-2xl' };
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-            <div className={`relative bg-white rounded-2xl shadow-xl w-full ${widths[size]} max-h-[90vh] flex flex-col`}>
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-                    <h3 className="font-semibold text-gray-900">{title}</h3>
-                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <div className="overflow-y-auto flex-1 px-6 py-4">{children}</div>
-            </div>
-        </div>
-    );
-}
-
 function FieldGroup({ label, error, children }) {
     return (
         <div>
@@ -360,7 +346,7 @@ function Select({ value, onChange, children, disabled, error }) {
     );
 }
 
-function LocalForm({ form, isEdit, zonaMap, onSubmit }) {
+function LocalForm({ form, isEdit, zonaMap, zonaCoverage, onSubmit }) {
     const { data, setData, errors, processing } = form;
     const [locating, setLocating] = useState(false);
     const [locationError, setLocationError] = useState('');
@@ -369,6 +355,9 @@ function LocalForm({ form, isEdit, zonaMap, onSubmit }) {
     const provincias = data.departamento ? getProvincias(data.departamento) : [];
     const distritos = data.departamento && data.provincia ? getDistritos(data.departamento, data.provincia) : [];
     const hasCoords = Boolean(data.lat && data.lng);
+    const resolveZona = (departamento, provincia = '', distrito = '') => (
+        zonaCoverage[`${departamento}|${provincia}|${distrito}`] || zonaMap[departamento] || ''
+    );
 
     const geocodeAddress = async ({ openMapOnSuccess = true, openMapOnFailure = true } = {}) => {
         setLocationError('');
@@ -426,14 +415,31 @@ function LocalForm({ form, isEdit, zonaMap, onSubmit }) {
             departamento: e.target.value,
             provincia: '',
             distrito: '',
-            zona: zonaMap[e.target.value] || '',
+            zona: resolveZona(e.target.value),
             lat: '',
             lng: '',
         });
     };
 
     const handleProvChange = (e) => {
-        setData({ ...data, provincia: e.target.value, distrito: '', lat: '', lng: '' });
+        setData({
+            ...data,
+            provincia: e.target.value,
+            distrito: '',
+            zona: resolveZona(data.departamento, e.target.value),
+            lat: '',
+            lng: '',
+        });
+    };
+
+    const handleDistrictChange = (e) => {
+        setData({
+            ...data,
+            distrito: e.target.value,
+            zona: resolveZona(data.departamento, data.provincia, e.target.value),
+            lat: '',
+            lng: '',
+        });
     };
 
     return (
@@ -472,7 +478,7 @@ function LocalForm({ form, isEdit, zonaMap, onSubmit }) {
                                 <span className="font-medium text-gray-700">{data.zona}</span>
                             </>
                         ) : (
-                            <span className="text-gray-400">Auto-asignada por departamento</span>
+                            <span className="text-gray-400">Auto-asignada por ubicación</span>
                         )}
                     </div>
                 </FieldGroup>
@@ -486,7 +492,7 @@ function LocalForm({ form, isEdit, zonaMap, onSubmit }) {
                     </Select>
                 </FieldGroup>
                 <FieldGroup label="Distrito" error={errors.distrito}>
-                    <Select value={data.distrito} onChange={(e) => setData({ ...data, distrito: e.target.value, lat: '', lng: '' })} disabled={!data.provincia} error={errors.distrito}>
+                    <Select value={data.distrito} onChange={handleDistrictChange} disabled={!data.provincia} error={errors.distrito}>
                         <option value="">Seleccionar distrito</option>
                         {distritos.map((d) => <option key={d} value={d}>{d}</option>)}
                     </Select>
@@ -598,7 +604,7 @@ const EMPTY_FORM = {
     motivo: '', registrar_historial: false,
 };
 
-export default function LocalesIndex({ locales = {}, zonas = [], zonaMap = {}, filters = {}, filterOptions = {} }) {
+export default function LocalesIndex({ locales = {}, zonas = [], zonaMap = {}, zonaCoverage = {}, filters = {}, filterOptions = {} }) {
     const user = usePage().props.auth?.user || {};
     const canDelete = user.rol === 'admin';
     const [search, setSearch] = useState(filters.search || '');
@@ -812,33 +818,41 @@ export default function LocalesIndex({ locales = {}, zonas = [], zonaMap = {}, f
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b border-gray-100 bg-gray-50">
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Código</th>
+                                <th className="hidden text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide sm:table-cell">Código</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
+                                <th className="hidden text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide md:table-cell">Tipo</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Zona</th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Pantallas</th>
+                                <th className="hidden text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide lg:table-cell">Zona</th>
+                                <th className="hidden text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide lg:table-cell">Pantallas</th>
                                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {rows.length === 0 ? (
+                            {filtering ? (
+                                <tr><td colSpan={7} className="p-4"><ListSkeleton rows={3} /></td></tr>
+                            ) : rows.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-10 text-center text-gray-400 text-sm">
-                                        {search ? 'No se encontraron resultados para la búsqueda.' : 'No hay locales registrados.'}
+                                    <td colSpan={7} className="p-4">
+                                        <EmptyState
+                                            compact
+                                            title={search ? 'No encontramos locales' : 'Aún no hay locales registrados'}
+                                            description={search ? 'Prueba con otro nombre, código o ubicación.' : 'Registra el primer local para comenzar a asignar pantallas y servicios.'}
+                                            actionLabel={!search ? 'Registrar local' : undefined}
+                                            onAction={!search ? () => setCreateOpen(true) : undefined}
+                                        />
                                     </td>
                                 </tr>
                             ) : (
                                 rows.map((local) => (
                                     <tr key={local.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                                        <td className="px-4 py-3 font-mono text-xs text-gray-500">{local.codigo}</td>
+                                        <td className="hidden px-4 py-3 font-mono text-xs text-gray-500 sm:table-cell">{local.codigo}</td>
                                         <td className="px-4 py-3">
                                             <div>
                                                 <p className="font-medium text-gray-900">{local.nombre}</p>
                                                 <p className="text-xs text-gray-400">{[local.distrito, local.provincia].filter(Boolean).join(', ')}</p>
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3">
+                                        <td className="hidden px-4 py-3 md:table-cell">
                                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${TIPO_COLORS[local.tipo] || 'bg-gray-100 text-gray-700'}`}>
                                                 {local.tipo}
                                             </span>
@@ -848,7 +862,7 @@ export default function LocalesIndex({ locales = {}, zonas = [], zonaMap = {}, f
                                                 {local.estado}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3">
+                                        <td className="hidden px-4 py-3 lg:table-cell">
                                             {local.zona ? (
                                                 <span className="flex items-center gap-1.5 text-sm text-gray-700">
                                                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ZONA_COLORS[local.zona] || '#9CA3AF' }} />
@@ -858,7 +872,7 @@ export default function LocalesIndex({ locales = {}, zonas = [], zonaMap = {}, f
                                                 <span className="text-gray-400 text-xs">—</span>
                                             )}
                                         </td>
-                                        <td className="px-4 py-3">
+                                        <td className="hidden px-4 py-3 lg:table-cell">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-medium">
                                                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -876,27 +890,11 @@ export default function LocalesIndex({ locales = {}, zonas = [], zonaMap = {}, f
                                             </div>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <button
-                                                    onClick={() => openEdit(local)}
-                                                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                </button>
-                                                {canDelete && (
-                                                    <button
-                                                        onClick={() => setDeleteLocal(local)}
-                                                        disabled={local.pantallas_count > 0}
-                                                        title={local.pantallas_count > 0 ? 'No se puede eliminar: tiene pantallas asignadas' : 'Eliminar'}
-                                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
-                                                )}
+                                            <div className="flex justify-end">
+                                                <RowActions label={`Acciones de ${local.nombre}`}>
+                                                    <RowAction onClick={() => openEdit(local)}>Editar local</RowAction>
+                                                    {canDelete && <RowAction danger disabled={local.pantallas_count > 0} onClick={() => setDeleteLocal(local)}>Eliminar local</RowAction>}
+                                                </RowActions>
                                             </div>
                                         </td>
                                     </tr>
@@ -949,13 +947,13 @@ export default function LocalesIndex({ locales = {}, zonas = [], zonaMap = {}, f
 
             {/* Create Modal */}
             <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Nuevo local" size="xl">
-                <LocalForm form={createForm} isEdit={false} zonaMap={zonaMap} onSubmit={handleCreate} />
+                <LocalForm form={createForm} isEdit={false} zonaMap={zonaMap} zonaCoverage={zonaCoverage} onSubmit={handleCreate} />
             </Modal>
 
             {/* Edit Modal */}
             <Modal open={!!editLocal} onClose={() => setEditLocal(null)} title={`Editar: ${editLocal?.nombre || ''}`} size="xl">
                 {editLocal && (
-                    <LocalForm form={editForm} isEdit zonaMap={zonaMap} onSubmit={handleEdit} />
+                    <LocalForm form={editForm} isEdit zonaMap={zonaMap} zonaCoverage={zonaCoverage} onSubmit={handleEdit} />
                 )}
             </Modal>
 

@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Locales\LocalType;
 use App\Http\Controllers\Controller;
 use App\Models\Local;
 use App\Models\MovimientoLocal;
 use App\Models\Zona;
+use App\Models\ZonaCobertura;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class LocalController extends Controller
@@ -16,11 +19,11 @@ class LocalController extends Controller
     public function index(Request $request)
     {
         $filters = [
-            'search'       => trim((string) $request->query('search', '')),
-            'zona'         => (string) $request->query('zona', ''),
-            'tipo'         => (string) $request->query('tipo', ''),
+            'search' => trim((string) $request->query('search', '')),
+            'zona' => (string) $request->query('zona', ''),
+            'tipo' => (string) $request->query('tipo', ''),
             'departamento' => (string) $request->query('departamento', ''),
-            'provincia'    => (string) $request->query('provincia', ''),
+            'provincia' => (string) $request->query('provincia', ''),
         ];
 
         $locales = Local::query()
@@ -45,13 +48,20 @@ class LocalController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $zonas = Zona::orderBy('nombre')->get(['id','nombre','color','departamentos']);
-        $zonaMap = $zonas->flatMap(fn($z) => collect($z->departamentos)->mapWithKeys(fn($d) => [$d => $z->nombre]))->toArray();
+        $zonas = Zona::orderBy('nombre')->get(['id', 'nombre', 'color', 'departamentos']);
+        $zonaMap = $zonas->flatMap(fn ($z) => collect($z->departamentos)->mapWithKeys(fn ($d) => [$d => $z->nombre]))->toArray();
+        $zonaCoverage = ZonaCobertura::query()
+            ->with('zona:id,nombre')
+            ->get()
+            ->mapWithKeys(fn ($coverage) => [
+                $coverage->departamento.'|'.$coverage->provincia.'|'.$coverage->distrito => $coverage->zona->nombre,
+            ]);
 
         return Inertia::render('Admin/Locales/Index', [
             'locales' => $locales,
             'zonas' => $zonas,
             'zonaMap' => $zonaMap,
+            'zonaCoverage' => $zonaCoverage,
             'filters' => $filters,
             'filterOptions' => [
                 'zonas' => $this->localOptions('zona', $filters),
@@ -64,20 +74,21 @@ class LocalController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'nombre'        => 'required|string',
-            'tipo'          => 'required|in:DAC,CAC,CADENA',
-            'estado'        => 'required|string',
-            'zona'          => 'required|string',
-            'departamento'  => 'required|string',
-            'provincia'     => 'required|string',
-            'distrito'      => 'required|string',
-            'direccion'     => 'required|string',
-            'lat'              => 'nullable|numeric',
-            'lng'              => 'nullable|numeric',
-            'fecha_apertura'   => 'nullable|date',
-            'contacto_nombre'  => 'nullable|string',
+            'nombre' => 'required|string',
+            'tipo' => ['required', Rule::in(LocalType::ALL)],
+            'estado' => 'required|string',
+            'zona' => 'nullable|string',
+            'departamento' => 'required|string',
+            'provincia' => 'required|string',
+            'distrito' => 'required|string',
+            'direccion' => 'required|string',
+            'lat' => 'nullable|numeric',
+            'lng' => 'nullable|numeric',
+            'fecha_apertura' => 'nullable|date',
+            'contacto_nombre' => 'nullable|string',
             'contacto_celular' => 'nullable|string',
         ]);
+        $data['zona'] = $this->resolveZone($data);
         for ($attempt = 1; $attempt <= 3; $attempt++) {
             try {
                 DB::transaction(function () use (&$data) {
@@ -101,60 +112,83 @@ class LocalController extends Controller
     public function update(Request $request, Local $local)
     {
         $data = $request->validate([
-            'nombre'        => 'required|string',
-            'tipo'          => 'required|in:DAC,CAC,CADENA',
-            'estado'        => 'required|string',
-            'zona'          => 'required|string',
-            'departamento'  => 'required|string',
-            'provincia'     => 'required|string',
-            'distrito'      => 'required|string',
-            'direccion'     => 'required|string',
-            'lat'              => 'nullable|numeric',
-            'lng'              => 'nullable|numeric',
-            'fecha_apertura'   => 'nullable|date',
-            'contacto_nombre'  => 'nullable|string',
+            'nombre' => 'required|string',
+            'tipo' => ['required', Rule::in(LocalType::ALL)],
+            'estado' => 'required|string',
+            'zona' => 'nullable|string',
+            'departamento' => 'required|string',
+            'provincia' => 'required|string',
+            'distrito' => 'required|string',
+            'direccion' => 'required|string',
+            'lat' => 'nullable|numeric',
+            'lng' => 'nullable|numeric',
+            'fecha_apertura' => 'nullable|date',
+            'contacto_nombre' => 'nullable|string',
             'contacto_celular' => 'nullable|string',
-            'motivo'           => 'nullable|string',
+            'motivo' => 'nullable|string',
         ]);
+        $data['zona'] = $this->resolveZone($data);
         if ($request->boolean('registrar_historial')) {
-            if (!empty($data['direccion']) && $data['direccion'] !== $local->direccion) {
+            $locationFields = ['zona', 'departamento', 'provincia', 'distrito', 'direccion'];
+            $before = collect($local->only($locationFields))->all();
+            $after = collect($data)->only($locationFields)->all();
+            if ($before !== $after) {
                 MovimientoLocal::create([
-                    'local_id'    => $local->id,
-                    'user_id'     => auth()->id(),
-                    'tipo'        => 'Cambio de ubicación',
-                    'descripcion' => 'Dirección anterior: ' . $local->direccion,
-                    'motivo'      => $data['motivo'] ?? null,
+                    'local_id' => $local->id,
+                    'user_id' => auth()->id(),
+                    'tipo' => 'Cambio de ubicación',
+                    'descripcion' => $before['direccion'].' → '.$after['direccion'],
+                    'motivo' => $data['motivo'] ?? null,
+                    'datos_anteriores' => $before,
+                    'datos_nuevos' => $after,
                 ]);
             }
-            if (!empty($data['estado']) && $data['estado'] !== $local->estado) {
+            if (! empty($data['estado']) && $data['estado'] !== $local->estado) {
                 MovimientoLocal::create([
-                    'local_id'    => $local->id,
-                    'user_id'     => auth()->id(),
-                    'tipo'        => 'Cambio de estado',
-                    'descripcion' => $local->estado . ' → ' . $data['estado'],
-                    'motivo'      => $data['motivo'] ?? null,
+                    'local_id' => $local->id,
+                    'user_id' => auth()->id(),
+                    'tipo' => 'Cambio de estado',
+                    'descripcion' => $local->estado.' → '.$data['estado'],
+                    'motivo' => $data['motivo'] ?? null,
                 ]);
             }
         }
 
         unset($data['registrar_historial'], $data['motivo']);
         $local->update($data);
+
         return back();
     }
 
     private function generateCodigo(string $tipo): string
     {
-        $prefix = match($tipo) {
-            'DAC'    => 'DAC',
-            'CAC'    => 'CAC',
-            'CADENA' => 'CAD',
-            default  => 'LOC',
-        };
-        $codes = Local::where('codigo', 'like', $prefix . '-%')
+        $prefix = LocalType::codePrefix($tipo);
+        $codes = Local::where('codigo', 'like', $prefix.'-%')
             ->lockForUpdate()
             ->pluck('codigo');
-        $max   = $codes->map(fn($c) => (int) substr($c, strlen($prefix) + 1))->max() ?? 0;
-        return $prefix . '-' . str_pad($max + 1, 3, '0', STR_PAD_LEFT);
+        $max = $codes->map(fn ($c) => (int) substr($c, strlen($prefix) + 1))->max() ?? 0;
+
+        return $prefix.'-'.str_pad($max + 1, 3, '0', STR_PAD_LEFT);
+    }
+
+    private function resolveZone(array $data): string
+    {
+        $coverageZone = ZonaCobertura::query()
+            ->where('departamento', $data['departamento'])
+            ->where('provincia', $data['provincia'])
+            ->where('distrito', $data['distrito'])
+            ->with('zona:id,nombre')
+            ->first()
+            ?->zona
+            ?->nombre;
+
+        if ($coverageZone) {
+            return $coverageZone;
+        }
+
+        return Zona::query()
+            ->whereJsonContains('departamentos', $data['departamento'])
+            ->value('nombre') ?? ($data['zona'] ?? '');
     }
 
     private function localOptions(string $column, array $filters)
@@ -179,6 +213,7 @@ class LocalController extends Controller
         }
         $local->movimientos()->delete();
         $local->delete();
+
         return back();
     }
 }

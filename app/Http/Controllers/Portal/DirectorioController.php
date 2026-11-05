@@ -27,10 +27,13 @@ class DirectorioController extends Controller
 
         $locales = $localesQuery->withCount(['pantallas', 'movimientos'])
             ->with([
-                'movimientos' => fn($q) => $q->latest()->limit(8)->with('usuario:id,name'),
-                'pantallas'   => fn($q) => $q->select('id', 'local_id', 'codigo', 'serie', 'modelo', 'posicion', 'estado')
-                                            ->orderBy('codigo')
-                                            ->with(['movimientos' => fn($mq) => $mq->latest()->limit(10)->with('usuario:id,name')]),
+                'movimientos' => fn ($q) => $q->latest()->limit(8)->with('usuario:id,name'),
+                'pantallas' => fn ($q) => $q->select('id', 'local_id', 'codigo', 'serie', 'modelo', 'modelo_equipo', 'filas', 'columnas', 'estado')
+                    ->orderBy('codigo')
+                    ->with([
+                        'componentes:id,pantalla_id,serie,fila,columna,estado',
+                        'movimientos' => fn ($mq) => $mq->latest()->limit(10)->with('usuario:id,name'),
+                    ]),
             ])
             ->orderBy('zona')
             ->orderBy('nombre')
@@ -38,10 +41,10 @@ class DirectorioController extends Controller
             ->each(function ($local) {
                 $estados = $local->pantallas->pluck('estado')->unique()->toArray();
                 $local->estado_pantalla = collect(self::ESTADO_PRIORIDAD)
-                    ->first(fn($e) => in_array($e, $estados));
+                    ->first(fn ($e) => in_array($e, $estados));
             });
 
-        $zonas = Zona::when($user?->rol === 'regional', fn($q) => $q->where('nombre', $user->zona))
+        $zonas = Zona::when($user?->rol === 'regional', fn ($q) => $q->where('nombre', $user->zona))
             ->orderBy('nombre')
             ->get(['nombre', 'color', 'departamentos']);
 
@@ -49,7 +52,8 @@ class DirectorioController extends Controller
         if ($serie = request('serie')) {
             $pantallaBuscada = Pantalla::with([
                 'local',
-                'movimientos' => fn($q) => $q->latest()->limit(10)->with([
+                'componentes:id,pantalla_id,serie,fila,columna,estado',
+                'movimientos' => fn ($q) => $q->latest()->limit(10)->with([
                     'usuario:id,name',
                     'localAnterior:id,codigo,nombre',
                     'localNuevo:id,codigo,nombre',
@@ -57,18 +61,19 @@ class DirectorioController extends Controller
             ])
                 ->where(function ($q) use ($serie) {
                     $q->where('serie', 'like', "%{$serie}%")
-                        ->orWhere('codigo', 'like', "%{$serie}%");
+                        ->orWhere('codigo', 'like', "%{$serie}%")
+                        ->orWhereHas('componentes', fn ($componentes) => $componentes->where('serie', 'like', "%{$serie}%"));
                 })
-                ->when($user?->rol === 'regional', fn($q) => $q->whereHas('local', fn($lq) => $lq->where('zona', $user->zona)))
+                ->when($user?->rol === 'regional', fn ($q) => $q->whereHas('local', fn ($lq) => $lq->where('zona', $user->zona)))
                 ->first();
         }
 
         return Inertia::render('Portal/Directorio', [
-            'locales'         => $locales,
-            'zonas'           => $zonas,
+            'locales' => $locales,
+            'zonas' => $zonas,
             'pantallaBuscada' => $pantallaBuscada,
-            'serieBuscada'    => request('serie'),
-            'assetBase'       => request()->root(),
+            'serieBuscada' => request('serie'),
+            'assetBase' => request()->root(),
         ]);
     }
 }

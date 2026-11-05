@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
+import { LoadingBar } from '@/Components/LoadingState';
 
 const NAV_LINKS = [
     {
         href: '/admin/dashboard',
         label: 'Dashboard',
-        roles: ['admin', 'supervisor', 'operativo'],
+        roles: ['admin', 'supervisor'],
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -27,7 +28,7 @@ const NAV_LINKS = [
     {
         href: '/admin/locales',
         label: 'Locales',
-        roles: ['admin', 'supervisor', 'operativo'],
+        roles: ['admin', 'supervisor'],
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -36,8 +37,19 @@ const NAV_LINKS = [
         ),
     },
     {
+        href: '/admin/servicios',
+        label: 'Servicios',
+        roles: ['admin', 'supervisor', 'operativo'],
+        icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2m-4 0a2 2 0 104 0m-4 0a2 2 0 014 0m-6 8l2 2 4-4" />
+            </svg>
+        ),
+    },
+    {
         href: '/admin/pantallas',
-        label: 'Pantallas',
+        label: 'Inventario',
         roles: ['admin', 'supervisor', 'operativo'],
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,7 +61,7 @@ const NAV_LINKS = [
     {
         href: '/admin/reportes',
         label: 'Reportes',
-        roles: ['admin', 'supervisor', 'operativo'],
+        roles: ['admin', 'supervisor'],
         icon: (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -98,9 +110,20 @@ const ROL_COLORS = {
 };
 
 export default function AdminLayout({ children, title }) {
-    const { auth, url } = usePage().props;
+    const { auth } = usePage().props;
     const user = auth?.user || {};
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [navigationLoading, setNavigationLoading] = useState(false);
+
+    useEffect(() => {
+        const removeStartListener = router.on('start', () => setNavigationLoading(true));
+        const removeFinishListener = router.on('finish', () => setNavigationLoading(false));
+
+        return () => {
+            removeStartListener();
+            removeFinishListener();
+        };
+    }, []);
 
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
 
@@ -126,12 +149,11 @@ export default function AdminLayout({ children, title }) {
                         <Link
                             key={link.href}
                             href={link.href}
-                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                            className={`ui-pressable flex min-h-11 items-center gap-3 rounded-xl border-l-2 px-3 py-2.5 text-sm font-medium ${
                                 active
-                                    ? 'text-white'
-                                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                                    ? 'border-red-500 bg-gray-800 text-white'
+                                    : 'border-transparent text-gray-400 hover:bg-gray-800 hover:text-white'
                             }`}
-                            style={active ? { backgroundColor: '#E30613' } : {}}
                             onClick={() => mobile && setSidebarOpen(false)}
                         >
                             {link.icon}
@@ -156,7 +178,7 @@ export default function AdminLayout({ children, title }) {
                 </div>
                 <button
                     onClick={handleSignOut}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 text-sm transition-colors"
+                    className="ui-pressable flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-400 hover:bg-gray-800 hover:text-white"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -169,7 +191,8 @@ export default function AdminLayout({ children, title }) {
     );
 
     return (
-        <div className="flex h-screen bg-gray-100 overflow-hidden">
+        <div className="flex h-screen overflow-hidden bg-gray-100">
+            <LoadingBar show={navigationLoading} />
             {/* Desktop sidebar */}
             <div className="hidden lg:flex lg:flex-shrink-0">
                 <Sidebar />
@@ -179,7 +202,7 @@ export default function AdminLayout({ children, title }) {
             {sidebarOpen && (
                 <div className="fixed inset-0 z-40 lg:hidden">
                     <div
-                        className="fixed inset-0 bg-black bg-opacity-60"
+                        className="fixed inset-0 bg-gray-950/60 backdrop-blur-[1px]"
                         onClick={() => setSidebarOpen(false)}
                     />
                     <div className="fixed inset-y-0 left-0 z-50 flex">
@@ -197,7 +220,8 @@ export default function AdminLayout({ children, title }) {
                             {/* Mobile menu button */}
                             <button
                                 onClick={() => setSidebarOpen(true)}
-                                className="lg:hidden p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                                className="ui-pressable -ml-1 flex h-11 w-11 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-700 lg:hidden"
+                                aria-label="Abrir menú principal"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -214,7 +238,7 @@ export default function AdminLayout({ children, title }) {
                             )}
                             <Link
                                 href="/directorio"
-                                className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+                                className="ui-pressable flex min-h-11 items-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-800"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -227,7 +251,9 @@ export default function AdminLayout({ children, title }) {
 
                 {/* Page content */}
                 <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-                    {children}
+                    <div className="mx-auto w-full max-w-[1600px]">
+                        {children}
+                    </div>
                 </main>
             </div>
         </div>

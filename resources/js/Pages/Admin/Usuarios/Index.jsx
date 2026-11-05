@@ -1,5 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
+import Modal from '@/Components/AppModal';
+import EmptyState from '@/Components/EmptyState';
+import { RowAction, RowActions } from '@/Components/RowActions';
 import AdminLayout from '@/Layouts/AdminLayout';
 
 const ROLES = [
@@ -27,27 +30,6 @@ const ROL_LABELS = {
     operativo: 'Operativo',
     usuario: 'Usuario',
 };
-
-function Modal({ open, onClose, title, children, size = 'lg' }) {
-    if (!open) return null;
-    const widths = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg' };
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-            <div className={`relative bg-white rounded-2xl shadow-xl w-full ${widths[size]} max-h-[90vh] flex flex-col`}>
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-                    <h3 className="font-semibold text-gray-900">{title}</h3>
-                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <div className="overflow-y-auto flex-1 px-6 py-4">{children}</div>
-            </div>
-        </div>
-    );
-}
 
 function FieldGroup({ label, error, children }) {
     return (
@@ -323,18 +305,24 @@ export default function UsuariosIndex({ usuarios = [] }) {
                             <tr className="border-b border-gray-100 bg-gray-50">
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuario</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Rol</th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Zona</th>
+                                <th className="hidden text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide lg:table-cell">Zona</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">2FA</th>
-                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                                <th className="hidden text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide md:table-cell">2FA</th>
+                                <th className="hidden text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide xl:table-cell">Creado</th>
                                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-10 text-center text-gray-400 text-sm">
-                                        {search ? 'No se encontraron resultados.' : 'No hay usuarios registrados.'}
+                                    <td colSpan={7} className="p-4">
+                                        <EmptyState
+                                            compact
+                                            title={search ? 'No encontramos usuarios' : 'No hay usuarios registrados'}
+                                            description={search ? 'Prueba con otro nombre o correo.' : 'Crea un usuario y define el rol que tendrá en la plataforma.'}
+                                            actionLabel={!search ? 'Crear usuario' : undefined}
+                                            onAction={!search ? () => setCreateOpen(true) : undefined}
+                                        />
                                     </td>
                                 </tr>
                             ) : (
@@ -354,7 +342,7 @@ export default function UsuariosIndex({ usuarios = [] }) {
                                                 {ROL_LABELS[usuario.rol] || usuario.rol}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-gray-600">
+                                        <td className="hidden px-4 py-3 text-sm text-gray-600 lg:table-cell">
                                             {usuario.zona || <span className="text-gray-400">—</span>}
                                         </td>
                                         <td className="px-4 py-3">
@@ -370,7 +358,7 @@ export default function UsuariosIndex({ usuarios = [] }) {
                                                 {togglingUsuarioId === usuario.id ? 'Guardando...' : usuario.activo ? 'Activo' : 'Inactivo'}
                                             </button>
                                         </td>
-                                        <td className="px-4 py-3">
+                                        <td className="hidden px-4 py-3 md:table-cell">
                                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                                 usuario.two_factor_required
                                                     ? usuario.two_factor_confirmed_at
@@ -383,43 +371,28 @@ export default function UsuariosIndex({ usuarios = [] }) {
                                                     : 'No requerido'}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-xs text-gray-400">{formatDate(usuario.created_at)}</td>
+                                        <td className="hidden px-4 py-3 text-xs text-gray-400 xl:table-cell">{formatDate(usuario.created_at)}</td>
                                         <td className="px-4 py-3">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <button
-                                                    onClick={() => openEdit(usuario)}
-                                                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700"
-                                                >
-                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                    </svg>
-                                                </button>
+                                            <div className="flex justify-end">
+                                                <RowActions label={`Acciones de ${usuario.name}`}>
+                                                    <RowAction onClick={() => openEdit(usuario)}>Editar</RowAction>
                                                 {usuario.two_factor_required && usuario.two_factor_confirmed_at && (
-                                                    <button
+                                                    <RowAction
                                                         onClick={() => resetTwoFactor(usuario)}
                                                         disabled={resettingTwoFactorId === usuario.id}
-                                                        title="Restablecer 2FA"
-                                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
-                                                        {resettingTwoFactorId === usuario.id ? (
-                                                            <span className="w-3.5 h-3.5 border-2 border-amber-300 border-t-transparent rounded-full animate-spin" />
-                                                        ) : (
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11V7m0 4l-3-3m3 3l3-3M5 12a7 7 0 111.64 4.48L5 19v-7z" />
-                                                            </svg>
-                                                        )}
-                                                    </button>
+                                                        {resettingTwoFactorId === usuario.id ? 'Restableciendo…' : 'Restablecer 2FA'}
+                                                    </RowAction>
                                                 )}
                                                 {usuario.id !== user.id && (
-                                                    <button
+                                                    <RowAction
                                                         onClick={() => setDeleteUsuario(usuario)}
-                                                        className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600"
+                                                        danger
                                                     >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
+                                                        Eliminar
+                                                    </RowAction>
                                                 )}
+                                                </RowActions>
                                             </div>
                                         </td>
                                     </tr>

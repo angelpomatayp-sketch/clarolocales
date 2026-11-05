@@ -27,6 +27,7 @@ export const ZONA_COLORS = {
     Sur:           '#16A34A',
     Centro:        '#7C3AED',
     Lima:          '#E30613',
+    'Lima Provincias': '#EA580C',
     'Sin asignar': '#9CA3AF',
 };
 
@@ -35,12 +36,16 @@ export const ZONA_COLORS = {
 export const TIPO_BADGE = {
     DAC:    { bg: '#EFF6FF', color: '#1D4ED8', label: 'DAC' },
     CAC:    { bg: '#F5F3FF', color: '#7C3AED', label: 'CAC' },
+    CAV:    { bg: '#ECFDF5', color: '#047857', label: 'CAV' },
+    CAA:    { bg: '#ECFEFF', color: '#0E7490', label: 'CAA' },
     CADENA: { bg: '#FFF7ED', color: '#C2410C', label: 'CADENA' },
 };
 
 export const TIPO_COLORS = {
     DAC:    'bg-blue-100 text-blue-800',
     CAC:    'bg-purple-100 text-purple-800',
+    CAV:    'bg-emerald-100 text-emerald-800',
+    CAA:    'bg-cyan-100 text-cyan-800',
     CADENA: 'bg-orange-100 text-orange-800',
 };
 

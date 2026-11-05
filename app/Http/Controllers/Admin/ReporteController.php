@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Locales\LocalType;
 use App\Http\Controllers\Controller;
 use App\Models\Local;
 use App\Models\MovimientoLocal;
@@ -43,7 +44,7 @@ class ReporteController extends Controller
     {
         $filters = $this->filters($request);
         $tipo = $filters['reporte'];
-        $filename = 'reporte_' . $tipo . '_' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'reporte_'.$tipo.'_'.now()->format('Ymd_His').'.xlsx';
 
         return response()->streamDownload(function () use ($tipo, $filters) {
             $spreadsheet = $this->buildSpreadsheet($tipo, $filters);
@@ -77,7 +78,7 @@ class ReporteController extends Controller
             'zonas' => Local::whereNotNull('zona')->distinct()->orderBy('zona')->pluck('zona'),
             'departamentos' => Local::whereNotNull('departamento')->distinct()->orderBy('departamento')->pluck('departamento'),
             'provincias' => Local::whereNotNull('provincia')->distinct()->orderBy('provincia')->pluck('provincia'),
-            'tiposLocal' => ['DAC', 'CAC', 'CADENA'],
+            'tiposLocal' => LocalType::ALL,
             'estadosLocal' => Local::whereNotNull('estado')->distinct()->orderBy('estado')->pluck('estado'),
             'estadosPantalla' => Pantalla::whereNotNull('estado')->distinct()->orderBy('estado')->pluck('estado'),
         ];
@@ -95,18 +96,18 @@ class ReporteController extends Controller
     private function previewFor(string $tipo, array $filters): array
     {
         return match ($tipo) {
-            'locales' => $this->localesQuery($filters)->limit(10)->get()->map(fn($local) => $this->localRow($local))->values()->all(),
+            'locales' => $this->localesQuery($filters)->limit(10)->get()->map(fn ($local) => $this->localRow($local))->values()->all(),
             'movimientos' => $this->movimientosRows($filters)->take(10)->values()->all(),
-            default => $this->pantallasQuery($filters)->limit(10)->get()->map(fn($pantalla) => $this->pantallaRow($pantalla))->values()->all(),
+            default => $this->pantallasQuery($filters)->limit(10)->get()->map(fn ($pantalla) => $this->pantallaRow($pantalla))->values()->all(),
         };
     }
 
     private function pantallasQuery(array $filters): Builder
     {
         return Pantalla::query()
-            ->with('local')
-            ->when($filters['estado_pantalla'], fn($q, $estado) => $q->where('estado', $estado))
-            ->when($this->hasLocalFilters($filters), fn($q) => $q->whereHas('local', fn($localQuery) => $this->applyLocalFilters($localQuery, $filters)))
+            ->with(['local', 'componentes:id,pantalla_id,serie,fila,columna'])
+            ->when($filters['estado_pantalla'], fn ($q, $estado) => $q->where('estado', $estado))
+            ->when($this->hasLocalFilters($filters), fn ($q) => $q->whereHas('local', fn ($localQuery) => $this->applyLocalFilters($localQuery, $filters)))
             ->orderBy('codigo');
     }
 
@@ -121,11 +122,11 @@ class ReporteController extends Controller
     private function applyLocalFilters(Builder $query, array $filters): void
     {
         $query
-            ->when($filters['zona'], fn($q, $value) => $q->where('zona', $value))
-            ->when($filters['departamento'], fn($q, $value) => $q->where('departamento', $value))
-            ->when($filters['provincia'], fn($q, $value) => $q->where('provincia', $value))
-            ->when($filters['tipo_local'], fn($q, $value) => $q->where('tipo', $value))
-            ->when($filters['estado_local'], fn($q, $value) => $q->where('estado', $value));
+            ->when($filters['zona'], fn ($q, $value) => $q->where('zona', $value))
+            ->when($filters['departamento'], fn ($q, $value) => $q->where('departamento', $value))
+            ->when($filters['provincia'], fn ($q, $value) => $q->where('provincia', $value))
+            ->when($filters['tipo_local'], fn ($q, $value) => $q->where('tipo', $value))
+            ->when($filters['estado_local'], fn ($q, $value) => $q->where('estado', $value));
     }
 
     private function hasLocalFilters(array $filters): bool
@@ -136,23 +137,24 @@ class ReporteController extends Controller
     private function applyDateFilters(Builder $query, array $filters): void
     {
         $query
-            ->when($filters['fecha_desde'], fn($q, $value) => $q->whereDate('created_at', '>=', $value))
-            ->when($filters['fecha_hasta'], fn($q, $value) => $q->whereDate('created_at', '<=', $value));
+            ->when($filters['fecha_desde'], fn ($q, $value) => $q->whereDate('created_at', '>=', $value))
+            ->when($filters['fecha_hasta'], fn ($q, $value) => $q->whereDate('created_at', '<=', $value));
     }
 
     private function movimientosRows(array $filters)
     {
         $locales = MovimientoLocal::query()
-            ->with(['local', 'usuario:id,name'])
-            ->when($this->hasLocalFilters($filters), fn($q) => $q->whereHas('local', fn($localQuery) => $this->applyLocalFilters($localQuery, $filters)))
-            ->when($filters['fecha_desde'], fn($q, $value) => $q->whereDate('created_at', '>=', $value))
-            ->when($filters['fecha_hasta'], fn($q, $value) => $q->whereDate('created_at', '<=', $value))
+            ->with(['local', 'usuario:id,name', 'servicio:id,codigo'])
+            ->when($this->hasLocalFilters($filters), fn ($q) => $q->whereHas('local', fn ($localQuery) => $this->applyLocalFilters($localQuery, $filters)))
+            ->when($filters['fecha_desde'], fn ($q, $value) => $q->whereDate('created_at', '>=', $value))
+            ->when($filters['fecha_hasta'], fn ($q, $value) => $q->whereDate('created_at', '<=', $value))
             ->get()
-            ->map(fn($movimiento) => [
+            ->map(fn ($movimiento) => [
                 'fecha' => optional($movimiento->created_at)->format('d/m/Y H:i'),
                 'origen' => 'Local',
                 'codigo' => $movimiento->local?->codigo,
                 'nombre' => $movimiento->local?->nombre,
+                'servicio' => $movimiento->servicio?->codigo,
                 'tipo' => $movimiento->tipo,
                 'descripcion' => $movimiento->descripcion,
                 'motivo' => $movimiento->motivo,
@@ -162,17 +164,18 @@ class ReporteController extends Controller
             ]);
 
         $pantallas = MovimientoPantalla::query()
-            ->with(['pantalla.local', 'usuario:id,name'])
-            ->when($filters['estado_pantalla'], fn($q, $estado) => $q->whereHas('pantalla', fn($pq) => $pq->where('estado', $estado)))
-            ->when($this->hasLocalFilters($filters), fn($q) => $q->whereHas('pantalla.local', fn($localQuery) => $this->applyLocalFilters($localQuery, $filters)))
-            ->when($filters['fecha_desde'], fn($q, $value) => $q->whereDate('created_at', '>=', $value))
-            ->when($filters['fecha_hasta'], fn($q, $value) => $q->whereDate('created_at', '<=', $value))
+            ->with(['pantalla.local', 'usuario:id,name', 'servicio:id,codigo'])
+            ->when($filters['estado_pantalla'], fn ($q, $estado) => $q->whereHas('pantalla', fn ($pq) => $pq->where('estado', $estado)))
+            ->when($this->hasLocalFilters($filters), fn ($q) => $q->whereHas('pantalla.local', fn ($localQuery) => $this->applyLocalFilters($localQuery, $filters)))
+            ->when($filters['fecha_desde'], fn ($q, $value) => $q->whereDate('created_at', '>=', $value))
+            ->when($filters['fecha_hasta'], fn ($q, $value) => $q->whereDate('created_at', '<=', $value))
             ->get()
-            ->map(fn($movimiento) => [
+            ->map(fn ($movimiento) => [
                 'fecha' => optional($movimiento->created_at)->format('d/m/Y H:i'),
                 'origen' => 'Pantalla',
                 'codigo' => $movimiento->pantalla?->codigo,
                 'nombre' => $movimiento->pantalla?->serie,
+                'servicio' => $movimiento->servicio?->codigo,
                 'tipo' => $movimiento->tipo,
                 'descripcion' => $movimiento->descripcion,
                 'motivo' => $movimiento->motivo,
@@ -192,7 +195,7 @@ class ReporteController extends Controller
             default => [$this->pantallasHeaders(), $this->pantallasRows($filters)],
         };
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle($this->sheetTitle($tipo));
 
@@ -202,11 +205,11 @@ class ReporteController extends Controller
         $sheet->mergeCells("A3:{$lastColumn}3");
         $sheet->setCellValue('A1', $this->reportTitle($tipo, $filters));
         $sheet->setCellValue('A2', 'ClaroLocales');
-        $sheet->setCellValue('A3', 'Generado: ' . now()->format('d/m/Y H:i'));
+        $sheet->setCellValue('A3', 'Generado: '.now()->format('d/m/Y H:i'));
 
         $logo = public_path('logoplantilla.png');
         if (is_file($logo)) {
-            $drawing = new Drawing();
+            $drawing = new Drawing;
             $drawing->setName('Claro');
             $drawing->setPath($logo);
             $drawing->setHeight(44);
@@ -228,7 +231,7 @@ class ReporteController extends Controller
 
         $headerRow = 5;
         foreach ($headers as $index => $header) {
-            $sheet->setCellValue($this->columnLetter($index + 1) . $headerRow, $header);
+            $sheet->setCellValue($this->columnLetter($index + 1).$headerRow, $header);
         }
 
         $sheet->getStyle("A{$headerRow}:{$lastColumn}{$headerRow}")->applyFromArray([
@@ -241,14 +244,14 @@ class ReporteController extends Controller
         $rowNumber = $headerRow + 1;
         foreach ($rows as $row) {
             foreach (array_values($row) as $index => $value) {
-                $cell = $this->columnLetter($index + 1) . $rowNumber;
+                $cell = $this->columnLetter($index + 1).$rowNumber;
                 $sheet->setCellValueExplicit($cell, (string) ($value ?? ''), DataType::TYPE_STRING);
             }
             $rowNumber++;
         }
 
         if ($rowNumber > $headerRow + 1) {
-            $sheet->getStyle("A" . ($headerRow + 1) . ":{$lastColumn}" . ($rowNumber - 1))->applyFromArray([
+            $sheet->getStyle('A'.($headerRow + 1).":{$lastColumn}".($rowNumber - 1))->applyFromArray([
                 'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => 'E5E7EB']]],
                 'alignment' => ['vertical' => Alignment::VERTICAL_TOP],
             ]);
@@ -265,7 +268,7 @@ class ReporteController extends Controller
 
     private function pantallasHeaders(): array
     {
-        return ['Serie', 'N° guía', 'Marca', 'Tipo pantalla', 'Modelo equipo', 'Tamaño', 'Estado pantalla', 'Fecha registro', 'Local', 'Tipo local', 'Estado local', 'Zona', 'Departamento', 'Provincia', 'Distrito', 'Dirección'];
+        return ['Serie principal', 'N° solicitud', 'Marca', 'Tipo pantalla', 'Configuración', 'Cantidad de paneles', 'Series de paneles', 'Modelo equipo', 'Tamaño', 'Estado pantalla', 'Fecha registro', 'Local', 'Tipo local', 'Estado local', 'Zona', 'Departamento', 'Provincia', 'Distrito', 'Dirección'];
     }
 
     private function localesHeaders(): array
@@ -275,7 +278,7 @@ class ReporteController extends Controller
 
     private function movimientosHeaders(): array
     {
-        return ['Fecha', 'Origen', 'Código', 'Nombre / Serie', 'Movimiento', 'Detalle', 'Motivo', 'Usuario', 'Zona', 'Departamento'];
+        return ['Fecha', 'Origen', 'Código', 'Nombre / Serie', 'Servicio relacionado', 'Movimiento', 'Detalle', 'Motivo', 'Usuario', 'Zona', 'Departamento'];
     }
 
     private function pantallasRows(array $filters): array
@@ -285,9 +288,12 @@ class ReporteController extends Controller
 
             return [
                 $row['serie'],
-                $row['numero_guia'],
+                $row['numero_solicitud'],
                 $row['marca'],
                 $row['modelo'],
+                $row['configuracion'],
+                $row['componentes_count'],
+                $row['series_componentes'],
                 $row['modelo_equipo'],
                 $row['tamanio'],
                 $row['estado'],
@@ -306,7 +312,7 @@ class ReporteController extends Controller
 
     private function localesRows(array $filters): array
     {
-        return $this->localesQuery($filters)->get()->map(fn($local) => array_values($this->localRow($local)))->all();
+        return $this->localesQuery($filters)->get()->map(fn ($local) => array_values($this->localRow($local)))->all();
     }
 
     private function pantallaRow(Pantalla $pantalla): array
@@ -314,9 +320,16 @@ class ReporteController extends Controller
         return [
             'codigo' => $pantalla->codigo,
             'serie' => $pantalla->serie,
-            'numero_guia' => $pantalla->numero_guia,
+            'numero_solicitud' => $pantalla->numero_solicitud,
             'marca' => $pantalla->marca,
             'modelo' => $pantalla->modelo,
+            'configuracion' => $pantalla->filas && $pantalla->columnas
+                ? $pantalla->filas.'x'.$pantalla->columnas
+                : null,
+            'componentes_count' => $pantalla->componentes->count(),
+            'series_componentes' => $pantalla->componentes
+                ->map(fn ($componente) => 'F'.$componente->fila.'-C'.$componente->columna.': '.$componente->serie)
+                ->implode(' | '),
             'modelo_equipo' => $pantalla->modelo_equipo,
             'tamanio' => $pantalla->tamanio,
             'estado' => $pantalla->estado,
@@ -355,7 +368,7 @@ class ReporteController extends Controller
 
     private function formatDate($value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 
@@ -381,12 +394,12 @@ class ReporteController extends Controller
             'fecha_desde' => 'Desde',
             'fecha_hasta' => 'Hasta',
         ] as $key => $label) {
-            if (!empty($filters[$key])) {
-                $parts[] = $label . ': ' . $filters[$key];
+            if (! empty($filters[$key])) {
+                $parts[] = $label.': '.$filters[$key];
             }
         }
 
-        return $base . ' - ' . (count($parts) ? implode(' | ', $parts) : 'Todos los registros');
+        return $base.' - '.(count($parts) ? implode(' | ', $parts) : 'Todos los registros');
     }
 
     private function sheetTitle(string $tipo): string
@@ -404,7 +417,7 @@ class ReporteController extends Controller
 
         while ($index > 0) {
             $mod = ($index - 1) % 26;
-            $letter = chr(65 + $mod) . $letter;
+            $letter = chr(65 + $mod).$letter;
             $index = intdiv($index - $mod, 26);
         }
 

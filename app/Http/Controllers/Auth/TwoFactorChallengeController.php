@@ -88,6 +88,10 @@ class TwoFactorChallengeController extends Controller
             return redirect()->route('directorio');
         }
 
+        if ($user->rol === 'operativo') {
+            return redirect()->route('admin.servicios.index');
+        }
+
         return redirect()->intended(route('admin.dashboard', absolute: false));
     }
 

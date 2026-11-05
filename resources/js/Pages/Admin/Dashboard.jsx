@@ -1,4 +1,5 @@
 import AdminLayout from '@/Layouts/AdminLayout';
+import EmptyState from '@/Components/EmptyState';
 import { Head } from '@inertiajs/react';
 import { ZONA_COLORS } from '@/constants/shared';
 
@@ -30,7 +31,7 @@ export default function Dashboard({ stats = {}, pantallasPorZona = [], pantallas
             <Head title="Dashboard" />
 
             {/* Stat Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+            <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4 2xl:grid-cols-7">
                 <StatCard
                     title="Locales"
                     value={stats.locales}
@@ -82,6 +83,28 @@ export default function Dashboard({ stats = {}, pantallasPorZona = [], pantallas
                     }
                 />
                 <StatCard
+                    title="CAV"
+                    value={stats.cav}
+                    subLabel="locales CAV"
+                    color="#047857"
+                    icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M5 21V7l8-4v18m6 0V11l-6-4M9 9h1m-1 4h1m-1 4h1m6-4h1m-1 4h1" />
+                        </svg>
+                    }
+                />
+                <StatCard
+                    title="CAA"
+                    value={stats.caa}
+                    subLabel="locales CAA"
+                    color="#0E7490"
+                    icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3M5 11h14M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+                        </svg>
+                    }
+                />
+                <StatCard
                     title="CADENA"
                     value={stats.cadena}
                     subLabel="locales Cadena"
@@ -102,7 +125,7 @@ export default function Dashboard({ stats = {}, pantallasPorZona = [], pantallas
                 </div>
                 <div className="p-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                     {pantallasPorZona.length === 0 ? (
-                        <p className="text-sm text-gray-400 col-span-4 text-center py-4">Sin datos</p>
+                        <div className="col-span-full"><EmptyState compact title="Sin pantallas por zona" description="La distribución aparecerá cuando registres pantallas y las asignes a locales." /></div>
                     ) : (
                         pantallasPorZona.map((item) => {
                             const pct = maxZona > 0 ? Math.round((item.total / maxZona) * 100) : 0;
@@ -118,7 +141,7 @@ export default function Dashboard({ stats = {}, pantallasPorZona = [], pantallas
                                     </div>
                                     <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
                                         <div
-                                            className="h-full rounded-full transition-all duration-500"
+                                            className="h-full rounded-full transition-[width] duration-200 ease-out"
                                             style={{ width: `${pct}%`, backgroundColor: color }}
                                         />
                                     </div>
@@ -137,7 +160,7 @@ export default function Dashboard({ stats = {}, pantallasPorZona = [], pantallas
                 </div>
                 <div className="p-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                     {pantallasPorDepartamento.length === 0 ? (
-                        <p className="text-sm text-gray-400 col-span-4 text-center py-4">Sin datos</p>
+                        <div className="col-span-full"><EmptyState compact title="Sin datos por departamento" description="Asigna pantallas a locales para visualizar su distribución geográfica." /></div>
                     ) : (
                         pantallasPorDepartamento.map((item) => {
                             const pct = maxDepartamento > 0 ? Math.round((item.total / maxDepartamento) * 100) : 0;
@@ -153,7 +176,7 @@ export default function Dashboard({ stats = {}, pantallasPorZona = [], pantallas
                                     </div>
                                     <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
                                         <div
-                                            className="h-full rounded-full transition-all duration-500"
+                                            className="h-full rounded-full transition-[width] duration-200 ease-out"
                                             style={{ width: `${pct}%`, backgroundColor: color }}
                                         />
                                     </div>

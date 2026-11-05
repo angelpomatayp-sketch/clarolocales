@@ -3,13 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Local;
 
 class MovimientoPantalla extends Model
 {
     protected $table = 'movimientos_pantalla';
 
-    protected $fillable = ['pantalla_id', 'user_id', 'local_anterior_id', 'local_nuevo_id', 'tipo', 'descripcion', 'motivo'];
+    protected $fillable = ['pantalla_id', 'servicio_id', 'user_id', 'local_anterior_id', 'local_nuevo_id', 'tipo', 'descripcion', 'motivo'];
 
     public function pantalla()
     {
@@ -29,5 +28,10 @@ class MovimientoPantalla extends Model
     public function localNuevo()
     {
         return $this->belongsTo(Local::class, 'local_nuevo_id');
+    }
+
+    public function servicio()
+    {
+        return $this->belongsTo(ServicioPantalla::class, 'servicio_id');
     }
 }

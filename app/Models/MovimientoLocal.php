@@ -8,7 +8,15 @@ class MovimientoLocal extends Model
 {
     protected $table = 'movimientos_local';
 
-    protected $fillable = ['local_id', 'user_id', 'tipo', 'descripcion', 'motivo'];
+    protected $fillable = [
+        'local_id', 'servicio_id', 'user_id', 'tipo', 'descripcion', 'motivo',
+        'datos_anteriores', 'datos_nuevos',
+    ];
+
+    protected $casts = [
+        'datos_anteriores' => 'array',
+        'datos_nuevos' => 'array',
+    ];
 
     public function local()
     {
@@ -18,5 +26,10 @@ class MovimientoLocal extends Model
     public function usuario()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function servicio()
+    {
+        return $this->belongsTo(ServicioPantalla::class, 'servicio_id');
     }
 }

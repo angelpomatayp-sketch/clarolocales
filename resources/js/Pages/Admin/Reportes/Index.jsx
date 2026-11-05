@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import EmptyState from '@/Components/EmptyState';
 
 const REPORTES = [
     { value: 'pantallas', label: 'Inventario de pantallas' },
@@ -13,6 +14,9 @@ const HEADERS = {
         ['serie', 'Serie'],
         ['estado', 'Estado'],
         ['modelo', 'Tipo pantalla'],
+        ['configuracion', 'Configuración'],
+        ['componentes_count', 'Paneles'],
+        ['series_componentes', 'Series de paneles'],
         ['tamanio', 'Tamaño'],
         ['local_nombre', 'Local'],
         ['local_tipo', 'Tipo local'],
@@ -37,6 +41,7 @@ const HEADERS = {
         ['origen', 'Origen'],
         ['codigo', 'Código'],
         ['nombre', 'Nombre / Serie'],
+        ['servicio', 'Servicio relacionado'],
         ['tipo', 'Movimiento'],
         ['descripcion', 'Detalle'],
         ['motivo', 'Motivo'],
@@ -253,8 +258,8 @@ export default function ReportesIndex({ filters = {}, options = {}, summary = {}
                             <tbody>
                                 {preview.length === 0 ? (
                                     <tr>
-                                        <td colSpan={headers.length} className="px-4 py-10 text-center text-sm text-gray-400">
-                                            No hay registros para mostrar.
+                                        <td colSpan={headers.length} className="p-4">
+                                            <EmptyState compact title="No hay registros para mostrar" description="Ajusta los filtros para generar una vista previa del reporte." />
                                         </td>
                                     </tr>
                                 ) : (

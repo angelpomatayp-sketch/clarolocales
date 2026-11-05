@@ -440,10 +440,22 @@ function DetailPanel({ local, onClose, onVerMapa, pantallaBuscada }) {
                                             <tbody className="divide-y divide-gray-50">
                                                 {(local.pantallas || []).map(p => (
                                                     <tr key={p.id} className="hover:bg-gray-50">
-                                                        <td className="px-3 py-2 font-mono text-gray-700 text-[11px]">{p.serie}</td>
+                                                        <td className="px-3 py-2 text-gray-700 text-[11px]">
+                                                            <span className="font-mono">{p.serie}</span>
+                                                            {p.componentes?.length > 0 && (
+                                                                <span className="mt-1 block break-words font-mono text-[9px] leading-3 text-gray-400">
+                                                                    Paneles: {p.componentes.map((component) => component.serie).join(', ')}
+                                                                </span>
+                                                            )}
+                                                        </td>
                                                         <td className="px-3 py-2 text-gray-600">
                                                             {p.modelo || '—'}
                                                             {p.modelo_equipo && <span className="ml-1 font-mono text-gray-400 text-[10px]">({p.modelo_equipo})</span>}
+                                                            {p.modelo === 'Video Wall' && p.filas && p.columnas && (
+                                                                <span className="mt-0.5 block text-[10px] font-medium text-red-600">
+                                                                    {p.filas}x{p.columnas} · {p.componentes?.length || 0} paneles
+                                                                </span>
+                                                            )}
                                                         </td>
                                                         <td className="px-3 py-2">
                                                             <span className="flex items-center gap-1">
@@ -572,6 +584,7 @@ const TIPO_MOV_COLOR = {
     'Cambio de estado':  { dot: '#F59E0B', text: 'text-yellow-700' },
     'Cambio de ubicación': { dot: '#8B5CF6', text: 'text-purple-700' },
     'Mantenimiento':     { dot: '#10B981', text: 'text-emerald-700' },
+    'Desmonte':          { dot: '#6B7280', text: 'text-gray-700' },
 };
 
 function SerieBanner({ pantalla, serie, onVer }) {
@@ -687,8 +700,9 @@ function gmapsPinSvg(color, active = false) {
 }
 
 function gmapsInfoHtml(local) {
-    const tipoBg    = local.tipo === 'DAC' ? '#EFF6FF' : local.tipo === 'CAC' ? '#F5F3FF' : '#FFF7ED';
-    const tipoColor = local.tipo === 'DAC' ? '#1D4ED8' : local.tipo === 'CAC' ? '#7C3AED'  : '#C2410C';
+    const tipoStyle = TIPO_BADGE[local.tipo] || { bg: '#F3F4F6', color: '#6B7280' };
+    const tipoBg = tipoStyle.bg;
+    const tipoColor = tipoStyle.color;
     const pantallas = local.pantallas || [];
     const rows = pantallas.map(p => {
         const dot = ESTADO_DOT_COLOR[p.estado] || '#9CA3AF';
@@ -968,6 +982,8 @@ function MapaView({ locales, zonas, activeZona, activeDept, activeProv, activeDi
 export default function Directorio({ locales = [], zonas = [], pantallaBuscada, serieBuscada, assetBase = '' }) {
     const user = usePage().props.auth?.user || {};
     const canAccessAdmin = ['admin', 'supervisor', 'operativo'].includes(user.rol);
+    const panelHref = user.rol === 'operativo' ? '/admin/servicios' : '/admin/dashboard';
+    const panelLabel = user.rol === 'operativo' ? 'Operaciones' : 'Administración';
     const [view, setView]             = useState('list');
     const [search, setSearch]         = useState('');
     const [serieInput, setSerieInput] = useState(serieBuscada || '');
@@ -999,7 +1015,7 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
         setActiveZona(zona); setActiveDept(dept); setActiveProv(prov); setActiveDist(dist); setSelected(null);
     };
 
-    const TIPOS = ['CAC', 'DAC', 'CADENA'];
+    const TIPOS = ['CAC', 'DAC', 'CAV', 'CAA', 'CADENA'];
 
     const filtered = useMemo(() => {
         // Si hay una pantalla encontrada por serie, mostrar solo su local
@@ -1096,10 +1112,10 @@ export default function Directorio({ locales = [], zonas = [], pantallaBuscada, 
                     </button>
                     {canAccessAdmin && (
                         <Link
-                            href="/admin/dashboard"
+                            href={panelHref}
                             className="flex items-center gap-1.5 ml-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                         >
-                            <IcoUser /> <span className="hidden sm:inline">Administración</span>
+                            <IcoUser /> <span className="hidden sm:inline">{panelLabel}</span>
                         </Link>
                     )}
                 </div>

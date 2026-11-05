@@ -51,4 +51,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(MovimientoPantalla::class);
     }
+
+    public function serviciosAsignados()
+    {
+        return $this->hasMany(ServicioPantalla::class, 'operador_id');
+    }
 }

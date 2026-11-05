@@ -1,26 +1,9 @@
 import { useState } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
+import Modal from '@/Components/AppModal';
+import EmptyState from '@/Components/EmptyState';
+import { RowAction, RowActions } from '@/Components/RowActions';
 import AdminLayout from '@/Layouts/AdminLayout';
-
-function Modal({ open, onClose, title, children }) {
-    if (!open) return null;
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                    <h3 className="font-semibold text-gray-900">{title}</h3>
-                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <div className="px-6 py-5">{children}</div>
-            </div>
-        </div>
-    );
-}
 
 function TipoForm({ form, submitLabel, onSubmit }) {
     const { data, setData, errors, processing } = form;
@@ -155,9 +138,9 @@ export default function TiposPantallaIndex({ tipos = [] }) {
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="border-b border-gray-100 bg-gray-50">
-                            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-8">#</th>
+                            <th className="hidden text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-8 sm:table-cell">#</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Descripción</th>
+                            <th className="hidden text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide md:table-cell">Descripción</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-24">Estado</th>
                             <th className="px-4 py-3 w-24" />
                         </tr>
@@ -165,17 +148,17 @@ export default function TiposPantallaIndex({ tipos = [] }) {
                     <tbody className="divide-y divide-gray-50">
                         {tipos.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="text-center py-14 text-sm text-gray-400">
-                                    No hay tipos de pantalla registrados. Crea el primero.
+                                <td colSpan={5} className="p-4">
+                                    <EmptyState compact title="No hay tipos de pantalla" description="Crea el primer tipo para utilizarlo en inventario e instalaciones." actionLabel="Crear tipo" onAction={() => setCreateOpen(true)} />
                                 </td>
                             </tr>
                         ) : tipos.map((tipo, idx) => (
                             <tr key={tipo.id} className={`transition-colors hover:bg-gray-50 ${!tipo.activo ? 'opacity-50' : ''}`}>
-                                <td className="px-5 py-3 text-xs text-gray-400">{idx + 1}</td>
+                                <td className="hidden px-5 py-3 text-xs text-gray-400 sm:table-cell">{idx + 1}</td>
                                 <td className="px-4 py-3">
                                     <span className="font-semibold text-gray-900">{tipo.nombre}</span>
                                 </td>
-                                <td className="px-4 py-3 text-gray-500 text-xs">{tipo.descripcion || <span className="italic text-gray-300">Sin descripción</span>}</td>
+                                <td className="hidden px-4 py-3 text-gray-500 text-xs md:table-cell">{tipo.descripcion || <span className="italic text-gray-300">Sin descripción</span>}</td>
                                 <td className="px-4 py-3">
                                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                                         tipo.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
@@ -185,27 +168,18 @@ export default function TiposPantallaIndex({ tipos = [] }) {
                                     </span>
                                 </td>
                                 <td className="px-4 py-3">
-                                    <div className="flex items-center justify-end gap-1">
-                                        <button
-                                            onClick={() => openEdit(tipo)}
-                                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-                                            title="Editar"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                            </svg>
-                                        </button>
+                                    <div className="flex justify-end">
+                                        <RowActions label={`Acciones de ${tipo.nombre}`}>
+                                            <RowAction onClick={() => openEdit(tipo)}>Editar</RowAction>
                                         {canDelete && (
-                                            <button
+                                            <RowAction
                                                 onClick={() => setDeleteTipo(tipo)}
-                                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                                                title="Eliminar"
+                                                danger
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
+                                                Eliminar
+                                            </RowAction>
                                         )}
+                                        </RowActions>
                                     </div>
                                 </td>
                             </tr>

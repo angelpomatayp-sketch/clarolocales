@@ -12,23 +12,28 @@ class ZonaSeeder extends Seeder
         $zonas = [
             [
                 'nombre' => 'Norte',
-                'color'  => '#E30613',
-                'departamentos' => ['Tumbes','Piura','Lambayeque','La Libertad','Cajamarca','Amazonas','San Martín','Loreto','Áncash'],
+                'color' => '#E30613',
+                'departamentos' => ['Áncash', 'Cajamarca', 'La Libertad', 'Lambayeque', 'Piura', 'Tumbes'],
             ],
             [
                 'nombre' => 'Sur',
-                'color'  => '#16A34A',
-                'departamentos' => ['Ica','Arequipa','Moquegua','Tacna','Puno','Cusco','Apurímac','Madre de Dios','Ayacucho'],
+                'color' => '#16A34A',
+                'departamentos' => ['Arequipa', 'Cusco', 'Moquegua', 'Puno', 'Tacna'],
             ],
             [
                 'nombre' => 'Centro',
-                'color'  => '#2563EB',
-                'departamentos' => ['Huánuco','Pasco','Junín','Huancavelica','Ucayali'],
+                'color' => '#2563EB',
+                'departamentos' => ['Ayacucho', 'Huánuco', 'Ica', 'Junín', 'Loreto', 'Ucayali'],
             ],
             [
                 'nombre' => 'Lima',
-                'color'  => '#7C3AED',
-                'departamentos' => ['Lima','Callao'],
+                'color' => '#7C3AED',
+                'departamentos' => ['Lima', 'Callao'],
+            ],
+            [
+                'nombre' => 'Lima Provincias',
+                'color' => '#EA580C',
+                'departamentos' => [],
             ],
         ];
 

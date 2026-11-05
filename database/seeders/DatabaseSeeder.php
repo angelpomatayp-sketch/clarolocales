@@ -27,6 +27,6 @@ class DatabaseSeeder extends Seeder
             User::updateOrCreate(['email' => $u['email']], $u);
         }
 
-        $this->call([ZonaSeeder::class, LocalSeeder::class, PantallaSeeder::class, MovimientoLocalSeeder::class]);
+        $this->call([ZonaSeeder::class, ZonaCoberturaSeeder::class, LocalSeeder::class, PantallaSeeder::class, MovimientoLocalSeeder::class]);
     }
 }

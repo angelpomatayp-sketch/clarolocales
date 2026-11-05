@@ -1,3 +1,103 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    :root {
+        --ui-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+        --ui-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    }
+
+    html {
+        color-scheme: light;
+    }
+
+    body {
+        @apply bg-gray-100 text-gray-900 antialiased;
+    }
+
+    button,
+    a,
+    input,
+    select,
+    textarea {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+        outline: 2px solid #dc2626;
+        outline-offset: 2px;
+    }
+}
+
+@layer components {
+    .ui-pressable {
+        transition: transform 140ms var(--ui-ease-out), background-color 160ms ease, color 160ms ease, border-color 160ms ease, opacity 160ms ease;
+    }
+
+    .ui-pressable:active:not(:disabled) {
+        transform: scale(0.97);
+    }
+
+    .ui-modal-backdrop {
+        opacity: 1;
+        transition: opacity 180ms var(--ui-ease-out);
+    }
+
+    .ui-modal-panel {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        transition: opacity 220ms var(--ui-ease-out), transform 220ms var(--ui-ease-out);
+    }
+
+    .ui-skeleton {
+        background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+        background-size: 200% 100%;
+        animation: ui-shimmer 1.15s linear infinite;
+    }
+
+    .ui-loading-bar {
+        animation: ui-loading 850ms linear infinite;
+    }
+
+    @starting-style {
+        .ui-modal-backdrop {
+            opacity: 0;
+        }
+
+        .ui-modal-panel {
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+        }
+    }
+}
+
+@keyframes ui-shimmer {
+    to { background-position: -200% 0; }
+}
+
+@keyframes ui-loading {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(350%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ui-pressable,
+    .ui-modal-backdrop,
+    .ui-modal-panel {
+        transition-duration: 1ms;
+    }
+
+    .ui-modal-panel {
+        transform: none;
+    }
+
+    .ui-skeleton,
+    .ui-loading-bar {
+        animation-duration: 2s;
+    }
+}

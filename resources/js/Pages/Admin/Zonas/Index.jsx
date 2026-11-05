@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
+import Modal from '@/Components/AppModal';
+import EmptyState from '@/Components/EmptyState';
+import { RowAction, RowActions } from '@/Components/RowActions';
 import AdminLayout from '@/Layouts/AdminLayout';
 
 const PERU_DEPARTAMENTOS = [
@@ -15,26 +18,18 @@ const COLOR_SWATCHES = [
     '#EA580C', '#0891B2', '#BE185D', '#65A30D',
 ];
 
-function Modal({ open, onClose, title, children }) {
-    if (!open) return null;
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-            <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-                    <h3 className="font-semibold text-gray-900">{title}</h3>
-                    <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <div className="overflow-y-auto flex-1 px-6 py-4">
-                    {children}
-                </div>
-            </div>
-        </div>
-    );
+function coverageSummary(coverages = []) {
+    const groups = new Map();
+
+    coverages.forEach(({ departamento, provincia }) => {
+        const key = `${departamento}|${provincia}`;
+        groups.set(key, (groups.get(key) || 0) + 1);
+    });
+
+    return [...groups.entries()].map(([key, districtCount]) => {
+        const [departamento, provincia] = key.split('|');
+        return { key, departamento, provincia, districtCount };
+    });
 }
 
 function ZonaForm({ form, otherZonaDeptos, submitLabel, onSubmit }) {
@@ -236,69 +231,60 @@ export default function ZonasIndex({ zonas = [], deptoConZona = {} }) {
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="border-b border-gray-100 bg-gray-50">
-                            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-8">#</th>
+                            <th className="hidden text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-8 sm:table-cell">#</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Zona</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Departamentos asignados</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-20">Depts.</th>
+                            <th className="hidden text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide md:table-cell">Departamentos y provincias cargadas</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-20">Ubic.</th>
                             <th className="px-4 py-3 w-24" />
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {zonas.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="text-center py-12 text-sm text-gray-400">
-                                    No hay zonas registradas
+                                <td colSpan={5} className="p-4">
+                                    <EmptyState compact title="No hay zonas registradas" description="Crea una zona y asigna su cobertura geográfica." actionLabel="Crear zona" onAction={() => setCreateOpen(true)} />
                                 </td>
                             </tr>
                         ) : zonas.map((zona, idx) => (
                             <tr key={zona.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-5 py-3 text-xs text-gray-400">{idx + 1}</td>
+                                <td className="hidden px-5 py-3 text-xs text-gray-400 sm:table-cell">{idx + 1}</td>
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2.5">
                                         <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: zona.color }} />
                                         <span className="font-semibold text-gray-900">{zona.nombre}</span>
                                     </div>
                                 </td>
-                                <td className="px-4 py-3">
-                                    <div className="flex flex-wrap gap-1">
-                                        {(zona.departamentos || []).length === 0 ? (
+                                <td className="hidden px-4 py-3 md:table-cell">
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {(zona.coberturas || []).length === 0 ? (
                                             <span className="text-xs text-gray-400 italic">Sin asignar</span>
-                                        ) : (zona.departamentos || []).map((d) => (
+                                        ) : coverageSummary(zona.coberturas).map((coverage) => (
                                             <span
-                                                key={d}
-                                                className="px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                                                style={{ backgroundColor: zona.color }}
+                                                key={coverage.key}
+                                                className="rounded-md border px-2 py-1 text-xs text-gray-700"
+                                                style={{ borderColor: `${zona.color}55`, backgroundColor: `${zona.color}0D` }}
                                             >
-                                                {d}
+                                                <strong>{coverage.departamento}</strong> · {coverage.provincia} ({coverage.districtCount})
                                             </span>
                                         ))}
                                     </div>
                                 </td>
                                 <td className="px-4 py-3 text-sm text-gray-500 font-medium">
-                                    {(zona.departamentos || []).length}
+                                    {(zona.coberturas || []).length}
                                 </td>
                                 <td className="px-4 py-3">
-                                    <div className="flex items-center justify-end gap-1">
-                                        <button
-                                            onClick={() => openEdit(zona)}
-                                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-                                            title="Editar"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                            </svg>
-                                        </button>
+                                    <div className="flex justify-end">
+                                        <RowActions label={`Acciones de ${zona.nombre}`}>
+                                            <RowAction onClick={() => openEdit(zona)}>Editar</RowAction>
                                         {canDelete && (
-                                            <button
+                                            <RowAction
                                                 onClick={() => setDeleteZona(zona)}
-                                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                                                title="Eliminar"
+                                                danger
                                             >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
+                                                Eliminar
+                                            </RowAction>
                                         )}
+                                        </RowActions>
                                     </div>
                                 </td>
                             </tr>

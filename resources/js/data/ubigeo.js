@@ -1874,6 +1874,7 @@ const UBIGEO = {
             'Carumas',
             'Cuchumbaya',
             'Samegua',
+            'San Antonio',
             'San Cristóbal',
             'Torata'
         ],

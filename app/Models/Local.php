@@ -26,4 +26,9 @@ class Local extends Model
     {
         return $this->hasMany(MovimientoLocal::class)->latest();
     }
+
+    public function servicios()
+    {
+        return $this->hasMany(ServicioPantalla::class);
+    }
 }

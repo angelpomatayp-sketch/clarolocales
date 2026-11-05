@@ -3,6 +3,7 @@ import { Head, Link } from '@inertiajs/react';
 import { Loader } from '@googlemaps/js-api-loader';
 import {
     TIPO_COLORS,
+    TIPO_BADGE,
     ESTADO_LOCAL_COLORS as ESTADO_COLORS,
     ZONA_COLORS,
     ESTADO_PANTALLA_COLOR as ESTADOS_PANTALLA_COLORS,
@@ -23,11 +24,8 @@ function buildPinMap(base) {
 function infoWindowContent(local) {
     const zonaColor = ZONA_COLORS[local.zona] || '#9CA3AF';
     const estadoColor = ESTADO_DOT[local.estado] || '#9CA3AF';
-    const tipoStyle = local.tipo === 'DAC'
-        ? 'background:#EFF6FF;color:#1D4ED8'
-        : local.tipo === 'CAC'
-            ? 'background:#F5F3FF;color:#7C3AED'
-            : 'background:#FFF7ED;color:#C2410C';
+    const badge = TIPO_BADGE[local.tipo] || { bg: '#F3F4F6', color: '#6B7280' };
+    const tipoStyle = `background:${badge.bg};color:${badge.color}`;
     const ubicacion = [local.distrito, local.provincia, local.departamento].filter(Boolean).map(esc).join(' · ');
     const contacto = local.contacto_nombre
         ? `<p style="font-size:11px;color:#6B7280;margin:6px 0 0">👤 ${esc(local.contacto_nombre)}${local.contacto_celular ? ' · ' + esc(local.contacto_celular) : ''}</p>`

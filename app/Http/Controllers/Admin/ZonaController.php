@@ -12,8 +12,11 @@ class ZonaController extends Controller
 {
     public function index()
     {
-        $zonas   = Zona::orderBy('nombre')->get();
-        $deptoConZona = $zonas->flatMap(fn($z) => collect($z->departamentos)->mapWithKeys(fn($d) => [$d => $z->nombre]))->toArray();
+        $zonas = Zona::with(['coberturas:id,zona_id,departamento,provincia,distrito'])
+            ->orderBy('nombre')
+            ->get();
+        $deptoConZona = $zonas->flatMap(fn ($z) => collect($z->departamentos)->mapWithKeys(fn ($d) => [$d => $z->nombre]))->toArray();
+
         return Inertia::render('Admin/Zonas/Index', ['zonas' => $zonas, 'deptoConZona' => $deptoConZona]);
     }
 
@@ -22,6 +25,7 @@ class ZonaController extends Controller
         $data = $request->validate(['nombre' => 'required|string|unique:zonas,nombre', 'color' => 'required|string', 'departamentos' => 'array']);
         $this->reasignarDeptos($data['departamentos'] ?? [], null);
         Zona::create($data);
+
         return back();
     }
 
@@ -30,6 +34,7 @@ class ZonaController extends Controller
         $data = $request->validate(['nombre' => 'required|string|unique:zonas,nombre,'.$zona->id, 'color' => 'required|string', 'departamentos' => 'array']);
         $this->reasignarDeptos($data['departamentos'] ?? [], $zona->id);
         $zona->update($data);
+
         return back();
     }
 
@@ -41,14 +46,19 @@ class ZonaController extends Controller
             return back()->withErrors(['zona' => 'No se puede eliminar: hay locales asignados a esta zona.']);
         }
         $zona->delete();
+
         return back();
     }
 
     private function reasignarDeptos(array $deptos, ?int $excludeId): void
     {
-        if (empty($deptos)) return;
+        if (empty($deptos)) {
+            return;
+        }
         $query = Zona::query();
-        if ($excludeId) $query->where('id', '!=', $excludeId);
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
         foreach ($query->get() as $otra) {
             $nuevos = array_values(array_diff($otra->departamentos, $deptos));
             if (count($nuevos) !== count($otra->departamentos)) {
